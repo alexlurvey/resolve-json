@@ -1,0 +1,30 @@
+{
+	"name": "resolve-json",
+	"type": "module",
+	"packageManager": "yarn@4.6.0",
+	"scripts": {
+		"build": "tsc",
+		"test": "jest"
+	},
+	"files": [
+		"src"
+	],
+	"dependencies": {
+		"date-fns": "^4.1.0",
+		"lodash": "^4.17.21"
+	},
+	"devDependencies": {
+		"@babel/core": "^7.26.0",
+		"@babel/preset-env": "^7.26.0",
+		"@babel/preset-typescript": "^7.26.0",
+		"@types/jest": "^29.5.14",
+		"@types/lodash": "^4.17.14",
+		"jest": "^29.7.0",
+		"typescript": "^5.7.2"
+	},
+	"exports": {
+		".": {
+			"default": "./src/index.ts"
+		}
+	}
+}

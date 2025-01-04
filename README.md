@@ -1,0 +1,22 @@
+## resolve-json
+
+- [x] absolute string ref
+- [x] absolute array ref
+- [x] relative string ref
+- [x] relative array ref
+- [x] variable string ref
+- [x] varaible array ref
+- [] transforms
+    - [] xf_bool
+    - [] xf_concat
+    - [] xf_eq
+    - [] xf_hoist
+    - [] xf_invert
+    - [x] xf_join
+    - [] xf_map
+    - [] xf_not_eq
+    - [] xf_pick
+- [] array references/transforms resolve references/transforms
+    - [x] nested references
+    - [] nested transforms
+- [] array values with references are expanded
