@@ -6,9 +6,7 @@
 		"build": "tsc",
 		"test": "jest"
 	},
-	"files": [
-		"src"
-	],
+	"files": ["src"],
 	"dependencies": {
 		"date-fns": "^4.1.0",
 		"lodash": "^4.17.21"
@@ -17,6 +15,7 @@
 		"@babel/core": "^7.26.0",
 		"@babel/preset-env": "^7.26.0",
 		"@babel/preset-typescript": "^7.26.0",
+		"@biomejs/biome": "^1.9.4",
 		"@types/jest": "^29.5.14",
 		"@types/lodash": "^4.17.14",
 		"jest": "^29.7.0",
