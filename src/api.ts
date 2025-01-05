@@ -91,6 +91,7 @@ export type ResolveContext = {
 	currentLocation: Path;
 	root: Record<string, any>;
 	vars: Record<string, any>;
+	debugScope?: string[];
 };
 
 type ReferenceOpts = {

@@ -39,6 +39,27 @@ import {
 import { transform } from './transform';
 import { derefResolvable } from './utils';
 
+const shouldLog = (ctx: ResolveContext) => {
+	if (!ctx.debugScope) {
+		return false;
+	}
+
+	for (const [i, v] of ctx.debugScope.entries()) {
+		if (v !== ctx.currentLocation[i]) {
+			return false;
+		}
+	}
+
+	return true;
+};
+
+const __LOG__ = (ref: any, ctx: ResolveContext) => {
+	if (shouldLog(ctx)) {
+		console.log('resolving: ', ref);
+		console.log('ctx: ', ctx);
+	}
+};
+
 type ExpandResult = {
 	// TOOD: with transforms and references being equal, path name is now confusing/inaccurate
 	// For transforms, these are arguments (which _could_ be something other than string | number)
@@ -278,6 +299,8 @@ const resolveRef = (
 ) => {
 	const reference = new Reference(ref, ctx.currentLocation);
 
+	__LOG__(ref, ctx);
+
 	if (mutateRoot && !isLocationResolved(ctx.currentLocation, ctx.root)) {
 		set(ctx.root, ctx.currentLocation, reference);
 	}
@@ -305,6 +328,8 @@ const resolveTransform = (
 	mutateRoot = true,
 ) => {
 	const trans = new Transform(xform, ctx.currentLocation);
+
+	__LOG__(xform, ctx);
 
 	if (mutateRoot && !isLocationResolved(ctx.currentLocation, ctx.root)) {
 		set(ctx.root, ctx.currentLocation, trans);
@@ -356,6 +381,8 @@ const resolveVariable = (
 	ctx: ResolveContext,
 	mutateRoot = true,
 ) => {
+	__LOG__(def, ctx);
+
 	const getKey = (x: string) => (x === '$' ? '$' : x.substring(1));
 
 	if (isVariableString(def)) {
@@ -442,9 +469,10 @@ export const resolve = (
 	vars: Record<string, any> = {},
 	path: Path = [],
 	root?: any,
+	debugScope?: string[],
 ) => {
 	root = root || obj;
-	const ctx = { currentLocation: path, root, vars };
+	const ctx = { currentLocation: path, root, vars, debugScope };
 
 	if (isVariableString(obj) || isVariableArray(obj)) {
 		return resolveVariable(obj, ctx);
