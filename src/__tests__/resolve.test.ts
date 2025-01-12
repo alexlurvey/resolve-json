@@ -1,4 +1,4 @@
-import { UNRESOLVED } from '../api';
+import { Reference, Transform, UNRESOLVED } from '../api';
 import { resolve } from '../resolve';
 import { toPlainObject } from '../utils';
 
@@ -225,6 +225,104 @@ describe('resolve', () => {
 			]);
 			expect(result.step_data.urls.absolute).toBe('/activity/xxx');
 			expect(result.step_data.urls.relative).toBe('/activity/xxx');
+		});
+	});
+
+	describe('re-resolving values', () => {
+		test('variables re-resolve successfully', () => {
+			const data = {
+				testing: '$variable',
+			};
+
+			let resolved = resolve(data);
+
+			resolved = resolve(resolved, { variable: 'hello' });
+
+			expect(resolved.testing.value).toBe('hello');
+		});
+
+		test('relative reference re-resolve successfully', () => {
+			const data = {
+				testing: ['@@data', '$value'],
+				data: {
+					property: 123,
+				},
+			};
+
+			let resolved = resolve(data);
+
+			expect(resolved.testing).toBeInstanceOf(Reference);
+			expect(resolved.testing.value).toBe(UNRESOLVED);
+
+			resolved = resolve(resolved, { value: 'property' });
+
+			expect(resolved.testing.value).toBe(123);
+		});
+
+		test('transforms re-resolve successfully', () => {
+			const data = {
+				testing: ['xf_map', '$value', ['xf_pick', '$', ['value']]],
+			};
+
+			let resolved = resolve(data);
+
+			expect(resolved.testing).toBeInstanceOf(Transform);
+			expect(resolved.testing.value).toBe(UNRESOLVED);
+
+			resolved = resolve(resolved, { value: [{ value: 1 }, { value: 2 }] });
+
+			expect(resolved.testing.value).toEqual([1, 2]);
+		});
+
+		test('re-resolving a string reference used within a reference is successful', () => {
+			const data = {
+				descriptions: {
+					single: ['xf_pick', ['xf_hoist', '$value'], ['name']],
+					many: ['xf_map', '$value', ['xf_join', " '", ['$', 'name'], "'"]],
+				},
+				description: ['@@descriptions', '@input_type'],
+				inputs: {
+					has: 'single',
+					has_not: 'single',
+					has_any: 'many',
+					has_none: 'multiselect',
+				},
+				labels: {
+					single: 'Find One',
+					many: 'Find Multiple',
+				},
+				sizes: {
+					single: 250,
+					many: 300,
+				},
+				input_type: ['@@inputs', '$condition'],
+				label: ['@@labels', '@input_type'],
+				size: ['@sizes', '@input_type'],
+			};
+
+			let resolved = resolve(data);
+
+			expect(resolved.input_type).toBeInstanceOf(Reference);
+			expect(resolved.input_type.value).toBe(UNRESOLVED);
+
+			resolved = resolve(resolved, { condition: 'has' });
+
+			expect(resolved.input_type).toBeInstanceOf(Reference);
+			expect(resolved.input_type.value).toBe('single');
+			expect(resolved.description).toBeInstanceOf(Reference);
+			expect(resolved.description.value).toBe(UNRESOLVED);
+
+			resolved = resolve(resolved, {
+				condition: 'has',
+				value: [{ name: 'Option 1' }],
+			});
+
+			expect(resolved.description).toBeInstanceOf(Reference);
+			expect(resolved.description.value).toBe('Option 1');
+
+			const result = toPlainObject(resolved);
+			expect(result.input_type).toBe('single');
+			expect(result.description).toBe('Option 1');
 		});
 	});
 });

@@ -162,7 +162,11 @@ const resolveArgs = (
 					if (v !== undefined) {
 						xf.setValue(v);
 						acc.push(v);
+					} else {
+						acc.push(MISSING_PATH);
 					}
+				} else {
+					acc.push(MISSING_PATH);
 				}
 
 				references.push(xf);
@@ -293,11 +297,12 @@ const expandRef = (ref: ReferenceDef, ctx: ResolveContext): ExpandResult => {
 };
 
 const resolveRef = (
-	ref: ReferenceDef,
+	ref: Reference | ReferenceDef,
 	ctx: ResolveContext,
 	mutateRoot = true,
 ) => {
-	const reference = new Reference(ref, ctx.currentLocation);
+	const reference =
+		ref instanceof Reference ? ref : new Reference(ref, ctx.currentLocation);
 
 	__LOG__(ref, ctx);
 
@@ -323,11 +328,14 @@ const resolveRef = (
 };
 
 const resolveTransform = (
-	xform: TransformDef,
+	xform: Transform | TransformDef,
 	ctx: ResolveContext,
 	mutateRoot = true,
 ) => {
-	const trans = new Transform(xform, ctx.currentLocation);
+	const trans =
+		xform instanceof Transform
+			? xform
+			: new Transform(xform, ctx.currentLocation);
 
 	__LOG__(xform, ctx);
 
@@ -336,11 +344,11 @@ const resolveTransform = (
 	}
 
 	if (
-		isMapTransform(xform) ||
-		isSomeTransform(xform) ||
-		isFirstTransform(xform)
+		isMapTransform(trans.definition) ||
+		isSomeTransform(trans.definition) ||
+		isFirstTransform(trans.definition)
 	) {
-		const v = transform(xform, ctx);
+		const v = transform(trans.definition, ctx);
 		if (v !== undefined) {
 			trans.setValue(v);
 		}
@@ -377,7 +385,7 @@ const resolveArray = (arr: any[], ctx: ResolveContext) => {
 };
 
 const resolveVariable = (
-	def: VariableString | VariableArray,
+	def: Variable | VariableString | VariableArray,
 	ctx: ResolveContext,
 	mutateRoot = true,
 ) => {
@@ -385,29 +393,33 @@ const resolveVariable = (
 
 	const getKey = (x: string) => (x === '$' ? '$' : x.substring(1));
 
-	if (isVariableString(def)) {
-		const value = ctx.vars[getKey(def)] ?? UNRESOLVED;
-		const variable = new Variable(def, ctx.currentLocation, { value });
-		if (mutateRoot && !isLocationResolved(ctx.currentLocation, ctx.root)) {
-			set(ctx.root, ctx.currentLocation, variable);
+	const variable =
+		def instanceof Variable ? def : new Variable(def, ctx.currentLocation);
+
+	const lookup = isVariableString(variable.definition)
+		? variable.definition
+		: variable.definition[0];
+
+	const value = ctx.vars[getKey(lookup)] ?? UNRESOLVED;
+
+	if (isVariableArray(variable.definition)) {
+		const [_, ...args] = variable.definition;
+
+		const resolved = resolveArgs(args, ctx);
+
+		if (isValidPath(resolved.path)) {
+			variable.setValue(get(value, resolved.path));
 		}
-		return variable;
+
+		if (resolved.references) {
+			variable.setReferences(resolved.references);
+		}
+	} else {
+		variable.setValue(value);
 	}
 
-	const [v, ...args] = def;
-	const src = ctx.vars[getKey(v)];
-	const resolved = resolveArgs(args, ctx);
-	const variable = new Variable(def, ctx.currentLocation);
 	if (mutateRoot && !isLocationResolved(ctx.currentLocation, ctx.root)) {
 		set(ctx.root, ctx.currentLocation, variable);
-	}
-
-	if (isValidPath(resolved.path)) {
-		variable.setValue(get(src, resolved.path));
-	}
-
-	if (resolved.references) {
-		variable.setReferences(resolved.references);
 	}
 
 	return variable;
@@ -415,7 +427,7 @@ const resolveVariable = (
 
 const resolveObject = (obj: any, ctx: ResolveContext) => {
 	for (const k in obj) {
-		if (isResolvable(obj[k])) {
+		if (isResolvable(obj[k]) && obj[k].value !== UNRESOLVED) {
 			continue;
 		}
 
@@ -424,11 +436,15 @@ const resolveObject = (obj: any, ctx: ResolveContext) => {
 			currentLocation: [...ctx.currentLocation, k],
 		};
 
-		if (isVariableString(obj[k]) || isVariableArray(obj[k])) {
+		if (
+			obj[k] instanceof Variable ||
+			isVariableString(obj[k]) ||
+			isVariableArray(obj[k])
+		) {
 			resolveVariable(obj[k], downLevelCtx);
-		} else if (isTransform(obj[k])) {
+		} else if (obj[k] instanceof Transform || isTransform(obj[k])) {
 			resolveTransform(obj[k], downLevelCtx);
-		} else if (isRef(obj[k])) {
+		} else if (obj[k] instanceof Reference || isRef(obj[k])) {
 			resolveRef(obj[k], downLevelCtx);
 		} else if (Array.isArray(obj[k])) {
 			resolveArray(obj[k], downLevelCtx);
