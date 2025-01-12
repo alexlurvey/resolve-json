@@ -3,7 +3,7 @@ import get from 'lodash/get';
 import type { Path, ResolveContext, XF } from './api';
 import { isBooleanResultTransform, isUnresovled } from './checks';
 import { resolveImmediate } from './resolve';
-import { derefResolvable } from './utils';
+import { deref } from './utils';
 
 const bool = (...args: any[]) => {
 	return args.every(Boolean);
@@ -12,9 +12,9 @@ const bool = (...args: any[]) => {
 const concat = (...args: any[]) => {
 	return args.reduce((acc, x) => {
 		if (Array.isArray(x)) {
-			acc.push(...x.map(derefResolvable));
+			acc.push(...x.map(deref));
 		} else {
-			acc.push(derefResolvable(x));
+			acc.push(deref(x));
 		}
 		return acc;
 	}, []);
@@ -31,7 +31,7 @@ const eq = (a: any, b: any, returnVal?: any) => {
 };
 
 const first = (refs: any[], resolver: (ref: any) => any) => {
-	for (const ref of derefResolvable(refs)) {
+	for (const ref of deref(refs)) {
 		const resolved = resolver(ref);
 		if (isBooleanResultTransform(resolved)) {
 			if (resolved.value !== false) {
@@ -40,7 +40,7 @@ const first = (refs: any[], resolver: (ref: any) => any) => {
 			continue;
 		}
 
-		const res = derefResolvable(resolved);
+		const res = deref(resolved);
 		if (!isUnresovled(res) && res !== undefined) {
 			return res;
 		}
@@ -49,7 +49,7 @@ const first = (refs: any[], resolver: (ref: any) => any) => {
 
 const hoist = (x: any) => {
 	const v = Array.isArray(x) ? x[0] : x;
-	return derefResolvable(v);
+	return deref(v);
 };
 
 const invert = (x: any) => {
@@ -61,8 +61,8 @@ const join = (...args: any[]): any => {
 };
 
 export const map = (src: any[], resolver: ($: any) => any) => {
-	return derefResolvable(src).map((x: any) => {
-		return derefResolvable(resolver(x));
+	return deref(src).map((x: any) => {
+		return deref(resolver(x));
 	});
 };
 
@@ -79,14 +79,14 @@ const pick = (src: object, path?: Path) => {
 };
 
 const some = (src: any[], resolver: ($: any) => any, returnVal?: any) => {
-	const result = derefResolvable(src).some((x: any) => {
+	const result = deref(src).some((x: any) => {
 		const resolved = resolver(x);
 
 		if (isBooleanResultTransform(resolved)) {
 			return resolved.value;
 		}
 
-		return derefResolvable(resolved) === x;
+		return deref(resolved) === x;
 	});
 	return Boolean(returnVal) && result ? returnVal : result;
 };

@@ -37,7 +37,7 @@ import {
 	isVariableString,
 } from './checks';
 import { transform } from './transform';
-import { derefResolvable } from './utils';
+import { deref } from './utils';
 
 type ExpandResult = {
 	// TOOD: with transforms and references being equal, path name is now confusing/inaccurate
@@ -483,9 +483,14 @@ const resolveObjectImmediate = (obj: any, ctx: ResolveContext) => {
 	const result: Record<string, any> = {};
 
 	for (const k in obj) {
-		result[k] = derefResolvable(
-			resolveImmediate(obj[k], ctx.vars, [...ctx.currentLocation, k], ctx.root),
+		const resolved = resolveImmediate(
+			obj[k],
+			ctx.vars,
+			[...ctx.currentLocation, k],
+			ctx.root,
 		);
+
+		result[k] = deref(resolved);
 	}
 
 	return result;
@@ -494,10 +499,10 @@ const resolveObjectImmediate = (obj: any, ctx: ResolveContext) => {
 const resolveArrayImmediate = (array: any[], ctx: ResolveContext) => {
 	const result: any[] = [];
 
-	for (let i = 0; i < array.length; i++) {
-		result.push(
-			derefResolvable(resolveImmediate(array[i], ctx.vars, [], ctx.root)),
-		);
+	for (const x of array) {
+		const resolved = resolveImmediate(x, ctx.vars, [], ctx.root);
+
+		result.push(deref(resolved));
 	}
 
 	return result;

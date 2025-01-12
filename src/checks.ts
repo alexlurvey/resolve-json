@@ -1,6 +1,9 @@
 import {
 	MISSING_PATH,
 	UNRESOLVED,
+	Reference,
+	Transform,
+	Variable,
 	type AbsoluteArray,
 	type AbsoluteString,
 	type FirstTransform,
@@ -8,13 +11,10 @@ import {
 	type MapTransform,
 	type Path,
 	type RelativeArray,
-	Reference,
 	type ReferenceDef,
 	type RelativeString,
 	type SomeTransform,
-	Transform,
 	type TransformDef,
-	Variable,
 	type VariableArray,
 	type VariableString,
 } from './api';

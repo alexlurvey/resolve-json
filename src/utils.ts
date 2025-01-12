@@ -1,6 +1,9 @@
 import { isRecord, isResolvable } from './checks';
 
-export const derefResolvable = (x: any) => {
+/**
+ * If `x` is an IResolvable then returns its value.
+ */
+export const deref = (x: any) => {
 	if (isResolvable(x)) {
 		return x.value;
 	}

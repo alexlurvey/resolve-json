@@ -1,7 +1,6 @@
 export const UNRESOLVED = Symbol('__UNRESOLVED__');
 export const MISSING_PATH = Symbol('__MISSING_PATH__');
 
-// eslint-disable-next-line prettier/prettier
 export type VariableString = `$${string}`;
 export type VariableArray = [`$${string}`, ...ReferencePathPart[]];
 export type AbsoluteString = `@/${string}`;
@@ -51,7 +50,7 @@ export type JoinTransform = ['xf_join', ...ResolvableDef[]];
 export type MapTransform = [
 	'xf_map',
 	ResolvableDef,
-	TransformDef | Path | object,
+	TransformDef | Path | Record<string, any>,
 ];
 export type NotEqualTransform = [
 	'xf_not_eq',
