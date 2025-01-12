@@ -1,5 +1,4 @@
 import {
-	MISSING_PATH,
 	UNRESOLVED,
 	Reference,
 	Transform,
@@ -20,7 +19,7 @@ import {
 } from './api';
 
 export const canTransform = (path: Path) => {
-	return path.every((x) => x !== MISSING_PATH && x !== UNRESOLVED);
+	return path.every((x) => x !== UNRESOLVED);
 };
 
 export const isBooleanResultTransform = (xf: any): xf is Transform => {
@@ -72,7 +71,7 @@ export const isSomeTransform = (x: any): x is SomeTransform => {
 };
 
 export const isValidPath = (path: Path): path is (string | number)[] => {
-	return !path.includes(MISSING_PATH) && !path.includes(UNRESOLVED);
+	return !path.includes(UNRESOLVED);
 };
 
 export const isResolvable = (x: any): x is IResolvable => {

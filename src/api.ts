@@ -1,5 +1,4 @@
 export const UNRESOLVED = Symbol('__UNRESOLVED__');
-export const MISSING_PATH = Symbol('__MISSING_PATH__');
 
 export type VariableString = `$${string}`;
 export type VariableArray = [`$${string}`, ...ReferencePathPart[]];
@@ -10,12 +9,7 @@ export type RelativeArray = [`@@${string}`, ...ReferencePathPart[]];
 
 export type ReferencePathPart = string | ResolvableDef;
 
-export type Path = (
-	| string
-	| number
-	| typeof MISSING_PATH
-	| typeof UNRESOLVED
-)[];
+export type Path = (string | number | typeof UNRESOLVED)[];
 
 export type VariableDef = VariableArray | VariableString;
 

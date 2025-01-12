@@ -1,7 +1,6 @@
 import get from 'lodash/get';
 import set from 'lodash/set';
 import {
-	MISSING_PATH,
 	UNRESOLVED,
 	Reference,
 	Transform,
@@ -137,9 +136,10 @@ const resolveArgs = (
 	ctx: ResolveContext,
 ): ExpandResult => {
 	const { currentLocation, root, vars } = ctx;
+	const path: Path = [];
 	const references: IResolvable[] = [];
 
-	const path = parts.reduce<Path>((acc, part) => {
+	for (const part of parts) {
 		if (isTransform(part)) {
 			const xf = new Transform(part, currentLocation);
 			const [xform, ...args] = part;
@@ -153,12 +153,12 @@ const resolveArgs = (
 				const v = transform([xform, ...expanded.path], ctx);
 				if (v !== undefined) {
 					xf.setValue(v);
-					acc.push(v);
+					path.push(v);
 				} else {
-					acc.push(MISSING_PATH);
+					path.push(UNRESOLVED);
 				}
 			} else {
-				acc.push(MISSING_PATH);
+				path.push(UNRESOLVED);
 			}
 
 			references.push(xf);
@@ -172,9 +172,9 @@ const resolveArgs = (
 						value: v,
 					}),
 				);
-				acc.push(v ?? MISSING_PATH);
+				path.push(v ?? UNRESOLVED);
 			} else {
-				acc.push(MISSING_PATH);
+				path.push(UNRESOLVED);
 			}
 		} else if (isRelativeString(part)) {
 			const expanded = expandRef(part, ctx);
@@ -186,13 +186,13 @@ const resolveArgs = (
 						value: v,
 					}),
 				);
-				acc.push(v ?? MISSING_PATH);
+				path.push(v ?? UNRESOLVED);
 			} else {
-				acc.push(MISSING_PATH);
+				path.push(UNRESOLVED);
 			}
 		} else if (isVariableString(part)) {
 			const k = part === '$' ? part : part.substring(1);
-			acc.push(vars[k] ?? MISSING_PATH);
+			path.push(vars[k] ?? UNRESOLVED);
 		} else if (isVariableArray(part)) {
 			const [v, ...args] = part;
 			const key = v === '$' ? '$' : v.slice(1);
@@ -201,9 +201,9 @@ const resolveArgs = (
 			if (isValidPath(resolved.path)) {
 				const v = get(vars[key], resolved.path);
 				references.push(new Variable(part, currentLocation, { value: v }));
-				acc.push(v);
+				path.push(v);
 			} else {
-				acc.push(MISSING_PATH);
+				path.push(UNRESOLVED);
 			}
 		} else if (isAbsoluteArray(part)) {
 			const expanded = expandRef(part, ctx);
@@ -216,9 +216,9 @@ const resolveArgs = (
 						references: expanded.references,
 					}),
 				);
-				acc.push(v ?? MISSING_PATH);
+				path.push(v ?? UNRESOLVED);
 			} else {
-				acc.push(MISSING_PATH);
+				path.push(UNRESOLVED);
 			}
 		} else if (isRelativeArray(part)) {
 			const expanded = expandRef(part, ctx);
@@ -232,15 +232,14 @@ const resolveArgs = (
 					}),
 				);
 
-				acc.push(v);
+				path.push(v);
 			} else {
-				acc.push(MISSING_PATH);
+				path.push(UNRESOLVED);
 			}
 		} else {
-			acc.push(part);
+			path.push(part);
 		}
-		return acc;
-	}, []);
+	}
 
 	return { path, references };
 };
