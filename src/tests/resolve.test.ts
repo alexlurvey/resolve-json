@@ -1,10 +1,11 @@
+import { describe, expect, it } from 'vitest';
 import { Reference, Transform, UNRESOLVED } from '../api';
 import { resolve } from '../resolve';
 import { toPlainObject } from '../utils';
 
 describe('resolve', () => {
 	describe('basic', () => {
-		test('absolute string reference', () => {
+		it('absolute string reference', () => {
 			const src = {
 				global_value: 'global',
 				nesting: {
@@ -15,7 +16,7 @@ describe('resolve', () => {
 			expect(result.nesting.value).toBe('global');
 		});
 
-		test('relative string reference', () => {
+		it('relative string reference', () => {
 			const src = {
 				one: 'one',
 				two: '@one',
@@ -24,21 +25,21 @@ describe('resolve', () => {
 			expect(result.two).toBe('one');
 		});
 
-		test('variable string', () => {
+		it('variable string', () => {
 			const vars = { gimmesomething: 'something' };
 			const src = { value: '$gimmesomething' };
 			const result = toPlainObject(resolve(src, vars));
 			expect(result.value).toBe('something');
 		});
 
-		test('variable array', () => {
+		it('variable array', () => {
 			const vars = { test: { value: 'vvv' } };
 			const src = { value: ['$test', 'value'] };
 			const result = toPlainObject(resolve(src, vars));
 			expect(result.value).toBe('vvv');
 		});
 
-		test('absolute array refrence', () => {
+		it('absolute array refrence', () => {
 			const src = {
 				lookup: {
 					dropdown: 'dd_value',
@@ -51,7 +52,7 @@ describe('resolve', () => {
 			expect(result.nesting.value).toBe('dd_value');
 		});
 
-		test('absolute array refrence', () => {
+		it('absolute array refrence', () => {
 			const src = {
 				lookup: {
 					dropdown: 'dd_value',
@@ -62,7 +63,7 @@ describe('resolve', () => {
 			expect(result.value).toBe('dd_value');
 		});
 
-		test('array of references', () => {
+		it('array of references', () => {
 			const vars = { three: 'three' };
 			const src = {
 				lookup: {
@@ -78,7 +79,7 @@ describe('resolve', () => {
 	});
 
 	describe('with variables', () => {
-		test('absolute array', () => {
+		it('absolute array', () => {
 			const vars = { field_type: 'dropdown' };
 			const src = {
 				lookup: {
@@ -92,7 +93,7 @@ describe('resolve', () => {
 			expect(result.nesting.value).toBe('dd_value');
 		});
 
-		test('relative array', () => {
+		it('relative array', () => {
 			const vars = { field_type: 'dropdown' };
 			const src = {
 				lookup: {
@@ -106,7 +107,7 @@ describe('resolve', () => {
 	});
 
 	describe('nested references', () => {
-		test('absolute array w/ relative array', () => {
+		it('absolute array w/ relative array', () => {
 			const vars = { field_type: 'dropdown' };
 			const src = {
 				lookup: {
@@ -123,7 +124,7 @@ describe('resolve', () => {
 			expect(result.main_reference).toBe('lookup_value');
 		});
 
-		test('relative array w/ absolute array', () => {
+		it('relative array w/ absolute array', () => {
 			const vars = { field_type: 'dropdown' };
 			const src = {
 				lookup: {
@@ -142,7 +143,7 @@ describe('resolve', () => {
 	});
 
 	describe('unresolved references', () => {
-		test('absolute reference has UNRESOLVED value', () => {
+		it('absolute reference has UNRESOLVED value', () => {
 			const src = {
 				string: '@/not_found/item',
 				array: ['@@/not_found/item'],
@@ -152,7 +153,7 @@ describe('resolve', () => {
 			expect(result.array).toBe(UNRESOLVED);
 		});
 
-		test('relative reference has UNRESOLVED value', () => {
+		it('relative reference has UNRESOLVED value', () => {
 			const src = {
 				nesting: {
 					string: '@not_found/item',
@@ -164,7 +165,7 @@ describe('resolve', () => {
 			expect(result.nesting.array).toBe(UNRESOLVED);
 		});
 
-		test('transform with unresolved reference has UNRESOLVED value', () => {
+		it('transform with unresolved reference has UNRESOLVED value', () => {
 			const src = {
 				xform: ['xf_join', 'testing', ['@@/lookup/not_found']],
 			};
@@ -174,7 +175,7 @@ describe('resolve', () => {
 	});
 
 	describe('kitchen sink', () => {
-		test('all the things', () => {
+		it('all the things', () => {
 			const vars = {
 				activity: {
 					id: 'xxx',
@@ -229,7 +230,7 @@ describe('resolve', () => {
 	});
 
 	describe('re-resolving values', () => {
-		test('variables re-resolve successfully', () => {
+		it('variables re-resolve successfully', () => {
 			const data = {
 				testing: '$variable',
 			};
@@ -241,7 +242,7 @@ describe('resolve', () => {
 			expect(resolved.testing.value).toBe('hello');
 		});
 
-		test('relative reference re-resolve successfully', () => {
+		it('relative reference re-resolve successfully', () => {
 			const data = {
 				testing: ['@@data', '$value'],
 				data: {
@@ -259,7 +260,7 @@ describe('resolve', () => {
 			expect(resolved.testing.value).toBe(123);
 		});
 
-		test('transforms re-resolve successfully', () => {
+		it('transforms re-resolve successfully', () => {
 			const data = {
 				testing: ['xf_map', '$value', ['xf_pick', '$', ['value']]],
 			};
@@ -274,7 +275,7 @@ describe('resolve', () => {
 			expect(resolved.testing.value).toEqual([1, 2]);
 		});
 
-		test('re-resolving a string reference used within a reference is successful', () => {
+		it('re-resolving a string reference used within a reference is successful', () => {
 			const data = {
 				descriptions: {
 					single: ['xf_pick', ['xf_hoist', '$value'], ['name']],

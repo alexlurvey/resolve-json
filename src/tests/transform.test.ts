@@ -1,24 +1,25 @@
+import { describe, expect, it } from 'vitest';
 import { Transform } from '../api';
 import { resolve } from '../resolve';
 import { transform } from '../transform';
 
 describe('transforms', () => {
 	describe('xf_bool', () => {
-		test('accepts multiple arguments and ANDs them together', () => {
+		it('accepts multiple arguments and ANDs them together', () => {
 			const result = transform(['xf_bool', true, {}, [], 42, 0]);
 			expect(result).toBe(false);
 		});
 	});
 
 	describe('xf_concat', () => {
-		test('array values are flattened and joined with other arguments', () => {
+		it('array values are flattened and joined with other arguments', () => {
 			const result = transform(['xf_concat', 1, 2, [3, 4], 5]);
 			expect(result).toEqual([1, 2, 3, 4, 5]);
 		});
 	});
 
 	describe('xf_first', () => {
-		test('the first item in the list is returned', () => {
+		it('the first item in the list is returned', () => {
 			const result = transform([
 				'xf_first',
 				[
@@ -29,7 +30,7 @@ describe('transforms', () => {
 			expect(result).toBe('first');
 		});
 
-		test('the last item in the list is returned', () => {
+		it('the last item in the list is returned', () => {
 			const result = transform([
 				'xf_first',
 				[
@@ -41,7 +42,7 @@ describe('transforms', () => {
 			expect(result).toBe('third');
 		});
 
-		test('absolute references can be used as the return value', () => {
+		it('absolute references can be used as the return value', () => {
 			const root = { data: 42 };
 			const ctx = { currentLocation: [], root, vars: {} };
 			const result = transform(
@@ -57,7 +58,7 @@ describe('transforms', () => {
 			expect(result).toBe(42);
 		});
 
-		test('relative references can be used as the return value', () => {
+		it('relative references can be used as the return value', () => {
 			const root = {
 				nesting: {
 					data: 42,
@@ -81,21 +82,21 @@ describe('transforms', () => {
 
 	describe('xf_map', () => {
 		describe('transforms as mapping function', () => {
-			test('xf_join', () => {
+			it('xf_join', () => {
 				const array = ['Alice', 'Frank', 'Zorp'];
 				const mapper = ['xf_join', '__', '$', '__'];
 				const result = transform(['xf_map', array, mapper]);
 				expect(result).toEqual(['__Alice__', '__Frank__', '__Zorp__']);
 			});
 
-			test('xf_pick', () => {
+			it('xf_pick', () => {
 				const array = [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }];
 				const mapper = ['xf_pick', '$', ['name']];
 				const result = transform(['xf_map', array, mapper]);
 				expect(result).toEqual(['Alice', 'Frank', 'Zorp']);
 			});
 
-			test('xf_bool', () => {
+			it('xf_bool', () => {
 				const array = [0, false, '', 1, true, 'testing'];
 				const mapper = ['xf_bool', '$'];
 				const result = transform(['xf_map', array, mapper]);
@@ -104,7 +105,7 @@ describe('transforms', () => {
 		});
 
 		describe('transforms as an xf_map source', () => {
-			test('xf_map is used as the array source of another xf_map', () => {
+			it('xf_map is used as the array source of another xf_map', () => {
 				const vars = {
 					users: [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }],
 				};
@@ -118,7 +119,7 @@ describe('transforms', () => {
 				expect(result.value).toEqual(['__Alice__', '__Frank__', '__Zorp__']);
 			});
 
-			test('xf_concat is used as the array source of another xf_map', () => {
+			it('xf_concat is used as the array source of another xf_map', () => {
 				const src = {
 					data: {
 						one: 'one',
@@ -145,7 +146,7 @@ describe('transforms', () => {
 		});
 
 		describe('references as an xf_map source', () => {
-			test('absolute string reference', () => {
+			it('absolute string reference', () => {
 				const src = {
 					nesting: {
 						names: ['xf_map', '@/users', ['xf_pick', '$', ['name']]],
@@ -157,7 +158,7 @@ describe('transforms', () => {
 				expect(result.nesting.names.value).toEqual(['Alice', 'Frank', 'Zorp']);
 			});
 
-			test('absolute array reference', () => {
+			it('absolute array reference', () => {
 				const variables = {
 					object_type: 'client_client',
 				};
@@ -182,7 +183,7 @@ describe('transforms', () => {
 				expect(result.nesting.names.value).toEqual(['Alice', 'Frank', 'Zorp']);
 			});
 
-			test('relative string reference', () => {
+			it('relative string reference', () => {
 				const src = {
 					names: ['xf_map', '@users', ['xf_pick', '$', ['name']]],
 					users: [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }],
@@ -192,7 +193,7 @@ describe('transforms', () => {
 				expect(result.names.value).toEqual(['Alice', 'Frank', 'Zorp']);
 			});
 
-			test('relative array reference', () => {
+			it('relative array reference', () => {
 				const variables = {
 					object_type: 'client_client',
 				};
@@ -218,7 +219,7 @@ describe('transforms', () => {
 			});
 		});
 
-		test('map with object definition', () => {
+		it('map with object definition', () => {
 			const variables = {
 				users: [
 					{ first_name: 'Alice', last_name: 'Smith' },
@@ -249,7 +250,7 @@ describe('transforms', () => {
 			]);
 		});
 
-		test('a reference used in a mapper does not pollute the source object at the current location', () => {
+		it('a reference used in a mapper does not pollute the source object at the current location', () => {
 			const vars = {
 				users: [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }],
 			};
@@ -278,7 +279,7 @@ describe('transforms', () => {
 	});
 
 	describe('xf_pick', () => {
-		test('returns the nested path value', () => {
+		it('returns the nested path value', () => {
 			const src = { data: { array: ['one', 'two'] } };
 			const xf_pick = ['xf_pick', '@/data', ['array', 1]];
 			const result = resolve(xf_pick, {}, [], src);
@@ -286,7 +287,7 @@ describe('transforms', () => {
 			expect(result.value).toBe('two');
 		});
 
-		test('returns the source value when there is no second argument', () => {
+		it('returns the source value when there is no second argument', () => {
 			const src = { data: 'data' };
 			const xf_pick = ['xf_pick', '@/data'];
 			const result = resolve(xf_pick, {}, [], src);
@@ -294,7 +295,7 @@ describe('transforms', () => {
 			expect(result.value).toBe('data');
 		});
 
-		test('returns the source value when the second argument is an empty array', () => {
+		it('returns the source value when the second argument is an empty array', () => {
 			const src = { data: 'data' };
 			const xf_pick = ['xf_pick', '@/data', []];
 			const result = resolve(xf_pick, {}, [], src);
@@ -304,7 +305,7 @@ describe('transforms', () => {
 	});
 
 	describe('xf_some', () => {
-		test('boolean result transfrom as the comparator function', () => {
+		it('boolean result transfrom as the comparator function', () => {
 			const vars = {
 				users: [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }],
 			};
@@ -316,7 +317,7 @@ describe('transforms', () => {
 			expect(result).toBe(true);
 		});
 
-		test('absolute reference as the comparator', () => {
+		it('absolute reference as the comparator', () => {
 			const root = { data: 'Frank' };
 			const ctx = { currentLocation: [], root, vars: {} };
 			const result = transform(
@@ -326,7 +327,7 @@ describe('transforms', () => {
 			expect(result).toBe(true);
 		});
 
-		test('relative reference as the comparator', () => {
+		it('relative reference as the comparator', () => {
 			const root = {
 				nesting: { data: 'Frank', xf: 'xf location...' },
 			};

@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { extend } from '../extend';
 
 const withoutKeys = (
@@ -18,7 +19,7 @@ const withoutXFKeys = (object: Record<string, any>) => {
 
 describe('extend', () => {
 	describe('xf_inherit', () => {
-		test('plain objects are returned and merged', () => {
+		it('plain objects are returned and merged', () => {
 			const src = {
 				xf_inherit: [{ two: 'two', three: 'three' }],
 				one: 'one',
@@ -32,7 +33,7 @@ describe('extend', () => {
 			});
 		});
 
-		test('references are resolved (with a variable)', () => {
+		it('references are resolved (with a variable)', () => {
 			const src = {
 				lookup: {
 					client_client: {
@@ -55,7 +56,7 @@ describe('extend', () => {
 			});
 		});
 
-		test('transforms are resolved', () => {
+		it('transforms are resolved', () => {
 			const src = {
 				xf_inherit: [
 					[
@@ -75,7 +76,7 @@ describe('extend', () => {
 			expect(result).toEqual({ one: 'one', two: 'two', three: 'three' });
 		});
 
-		test('a transform can return a reference and both are resolved', () => {
+		it('a transform can return a reference and both are resolved', () => {
 			const src = {
 				shared_config: {
 					share_property: 'shared!',
@@ -90,7 +91,7 @@ describe('extend', () => {
 			expect(result).toEqual({ share_property: 'shared!', one: 'one' });
 		});
 
-		test('inherited configs are overridden', () => {
+		it('inherited configs are overridden', () => {
 			const src = {
 				xf_inherit: [
 					[
@@ -114,7 +115,7 @@ describe('extend', () => {
 	});
 
 	describe('xf_extend', () => {
-		test('values applied from xf_extend override existing values', () => {
+		it('values applied from xf_extend override existing values', () => {
 			const src = {
 				one: 'one',
 				two: 'two',
@@ -127,7 +128,7 @@ describe('extend', () => {
 		});
 	});
 
-	test('xf_extend values override those applied in from xf_inherit', () => {
+	it('xf_extend values override those applied in from xf_inherit', () => {
 		const src = {
 			three: 3,
 			xf_extend: [['xf_eq', 1, 1, { one: 1, two: 2 }]],
