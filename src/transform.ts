@@ -1,6 +1,7 @@
+import type { NumOrString } from '@thi.ng/api';
+import { getInUnsafe } from '@thi.ng/paths/get-in';
 import { format } from 'date-fns';
-import get from 'lodash/get';
-import type { Path, ResolveContext, XF } from './api';
+import type { ResolveContext, XF } from './api';
 import { isBooleanResultTransform, isUnresovled } from './checks';
 import { resolveImmediate } from './resolve';
 import { deref } from './utils';
@@ -71,9 +72,9 @@ const notEq = (a: any, b: any, returnVal?: any) => {
 	return Boolean(returnVal) && isNotEqual ? returnVal : isNotEqual;
 };
 
-const pick = (src: object, path?: Path) => {
+const pick = (src: object, path?: NumOrString[]) => {
 	if (path?.length) {
-		return get(src, path);
+		return getInUnsafe(src, path);
 	}
 	return src;
 };

@@ -1,5 +1,6 @@
-import get from 'lodash/get';
-import set from 'lodash/set';
+import type { NumOrString } from '@thi.ng/api';
+import { getInUnsafe } from '@thi.ng/paths/get-in';
+import { mutInUnsafe } from '@thi.ng/paths/mut-in';
 import {
 	UNRESOLVED,
 	Reference,
@@ -67,7 +68,7 @@ const __LOG__ = (ref: any, ctx: ResolveContext) => {
 };
 
 const isCurrentLocationVisited = (ctx: ResolveContext) => {
-	return isResolvable(get(ctx.root, ctx.currentLocation));
+	return isResolvable(getInUnsafe(ctx.root, ctx.currentLocation));
 };
 
 const pathFromString = (
@@ -101,9 +102,13 @@ const absPath = (...path: Path) => {
 	}, []);
 };
 
-const getInRoot = (root: any, path: Path, vars: Record<string, string>) => {
+const getInRoot = (
+	root: any,
+	path: NumOrString[],
+	vars: Record<string, string>,
+) => {
 	const n = path.length - 1;
-	const currentLocation: Path = [];
+	const currentLocation: NumOrString[] = [];
 	let res = root;
 
 	for (let i = 0; res != null && i <= n; i++) {
@@ -199,7 +204,7 @@ const resolveArgs = (
 			const resolved = resolveArgs(args, ctx);
 
 			if (isValidPath(resolved.path)) {
-				const v = get(vars[key], resolved.path);
+				const v = getInUnsafe(vars[key], resolved.path);
 				references.push(new Variable(part, currentLocation, { value: v }));
 				path.push(v);
 			} else {
@@ -296,7 +301,7 @@ const resolveRef = (
 	__LOG__(ref, ctx);
 
 	if (mutateRoot && !isCurrentLocationVisited(ctx)) {
-		set(ctx.root, ctx.currentLocation, reference);
+		mutInUnsafe(ctx.root, ctx.currentLocation, reference);
 	}
 
 	const resolved = expandRef(reference.definition, ctx);
@@ -329,7 +334,7 @@ const resolveTransform = (
 	__LOG__(xform, ctx);
 
 	if (mutateRoot && !isCurrentLocationVisited(ctx)) {
-		set(ctx.root, ctx.currentLocation, trans);
+		mutInUnsafe(ctx.root, ctx.currentLocation, trans);
 	}
 
 	if (
@@ -385,7 +390,7 @@ const resolveVariable = (
 		const resolved = resolveArgs(args, ctx);
 
 		if (isValidPath(resolved.path)) {
-			variable.setValue(get(value, resolved.path));
+			variable.setValue(getInUnsafe(value, resolved.path));
 		}
 
 		if (resolved.references) {
@@ -396,7 +401,7 @@ const resolveVariable = (
 	}
 
 	if (mutateRoot && !isCurrentLocationVisited(ctx)) {
-		set(ctx.root, ctx.currentLocation, variable);
+		mutInUnsafe(ctx.root, ctx.currentLocation, variable);
 	}
 
 	return variable;
@@ -440,7 +445,7 @@ const resolveArray = (arr: any[], ctx: ResolveContext) => {
 		}
 		const currentLocation = [...ctx.currentLocation, i];
 		const v = resolve(arr[i], ctx.vars, currentLocation, ctx.root);
-		set(ctx.root, currentLocation, v);
+		mutInUnsafe(ctx.root, currentLocation, v);
 	}
 	return arr;
 };
@@ -448,12 +453,17 @@ const resolveArray = (arr: any[], ctx: ResolveContext) => {
 export const resolve = (
 	obj: any,
 	vars: Record<string, any> = {},
-	path: Path = [],
+	path: NumOrString[] = [],
 	root?: any,
 	debugScope?: string[],
 ) => {
 	root = root || obj;
-	const ctx = { currentLocation: path, root, vars, debugScope };
+	const ctx: ResolveContext = {
+		currentLocation: path,
+		root,
+		vars,
+		debugScope,
+	};
 
 	if (isVariableString(obj) || isVariableArray(obj)) {
 		return resolveVariable(obj, ctx);
@@ -510,7 +520,7 @@ const resolveArrayImmediate = (array: any[], ctx: ResolveContext) => {
 export const resolveImmediate = (
 	obj: any,
 	vars: Record<string, any> = {},
-	path: Path = [],
+	path: NumOrString[] = [],
 	root?: any,
 ) => {
 	root = root || obj;

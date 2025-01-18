@@ -1,3 +1,5 @@
+import type { NumOrString } from '@thi.ng/api';
+
 export const UNRESOLVED = Symbol('__UNRESOLVED__');
 
 export type VariableString = `$${string}`;
@@ -9,7 +11,7 @@ export type RelativeArray = [`@@${string}`, ...ReferencePathPart[]];
 
 export type ReferencePathPart = string | ResolvableDef;
 
-export type Path = (string | number | typeof UNRESOLVED)[];
+export type Path = (NumOrString | typeof UNRESOLVED)[];
 
 export type VariableDef = VariableArray | VariableString;
 
@@ -81,7 +83,7 @@ export interface IResolvable {
 }
 
 export type ResolveContext = {
-	currentLocation: Path;
+	currentLocation: NumOrString[];
 	root: Record<string, any>;
 	vars: Record<string, any>;
 	debugScope?: string[];
@@ -91,13 +93,13 @@ type ReferenceOpts = {
 	/**
 	 * Path to the value of the reference
 	 */
-	abs_path?: Path | typeof UNRESOLVED;
+	abs_path?: NumOrString[] | typeof UNRESOLVED;
 	references?: IResolvable[];
 	value?: any;
 };
 
 export class Reference implements IResolvable {
-	abs_path: Path | typeof UNRESOLVED;
+	abs_path: NumOrString[] | typeof UNRESOLVED;
 	references: IResolvable[];
 	value: any;
 
@@ -115,7 +117,7 @@ export class Reference implements IResolvable {
 		this.value = value;
 	}
 
-	setAbsPath(path: Path) {
+	setAbsPath(path: NumOrString[]) {
 		this.abs_path = path;
 	}
 
