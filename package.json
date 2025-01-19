@@ -16,9 +16,6 @@
 		"@thi.ng/paths": "^5.1.97"
 	},
 	"devDependencies": {
-		"@babel/core": "^7.26.0",
-		"@babel/preset-env": "^7.26.0",
-		"@babel/preset-typescript": "^7.26.0",
 		"@biomejs/biome": "^1.9.4",
 		"typescript": "^5.7.2",
 		"vite": "^6.0.7",
