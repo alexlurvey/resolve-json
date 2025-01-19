@@ -1,6 +1,6 @@
 import type { NumOrString } from '@thi.ng/api';
+import { defFormat } from '@thi.ng/date/format';
 import { getInUnsafe } from '@thi.ng/paths/get-in';
-import { format } from 'date-fns';
 import type { ResolveContext, XF } from './api';
 import { isBooleanResultTransform, isUnresovled } from './checks';
 import { resolveImmediate } from './resolve';
@@ -21,9 +21,14 @@ const concat = (...args: any[]) => {
 	}, []);
 };
 
-const dateFormat = (value: string, fmt: string) => {
+const dateFormat = (value: string, fmt: string[]) => {
 	const date = new Date(value);
-	return Number.isNaN(date.getTime()) ? value : format(date, fmt);
+
+	if (Number.isNaN(date.getTime())) {
+		return value;
+	}
+
+	return defFormat(fmt)(date);
 };
 
 const eq = (a: any, b: any, returnVal?: any) => {

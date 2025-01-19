@@ -1661,10 +1661,37 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@thi.ng/date@npm:^2.7.38":
+  version: 2.7.38
+  resolution: "@thi.ng/date@npm:2.7.38"
+  dependencies:
+    "@thi.ng/api": "npm:^8.11.16"
+    "@thi.ng/checks": "npm:^3.6.19"
+    "@thi.ng/strings": "npm:^3.9.0"
+  checksum: 10c0/ea74fc294d7d75dbdf9960596e5583c2f4e506e051b1a68f1c600a1800a45402c8ed52555b7cc349ed88973e97f0478a04bc75e92e2ee5e66886a629e9533ce3
+  languageName: node
+  linkType: hard
+
 "@thi.ng/errors@npm:^2.5.22":
   version: 2.5.22
   resolution: "@thi.ng/errors@npm:2.5.22"
   checksum: 10c0/d2447b88550d23169a4748a2dea64591336c4046f58d149e988968cd64493c7ebc9c60deb358ac41ba16e5f9c69b59c27a1524b39bd7f6b4d7ff00b456777490
+  languageName: node
+  linkType: hard
+
+"@thi.ng/hex@npm:^2.3.60":
+  version: 2.3.60
+  resolution: "@thi.ng/hex@npm:2.3.60"
+  checksum: 10c0/acf76135aa11ac3eca426822449b7d1483c547260c3eb8b1c5c639cc34abd9cf69080015a3d8c49e0d6b8823c9fe10c03ac8cd886d4950ca53a7c337d1a5362e
+  languageName: node
+  linkType: hard
+
+"@thi.ng/memoize@npm:^4.0.6":
+  version: 4.0.6
+  resolution: "@thi.ng/memoize@npm:4.0.6"
+  dependencies:
+    "@thi.ng/api": "npm:^8.11.16"
+  checksum: 10c0/27cffca0bf5e9608a26e4b2e4f2d0692ab824423761d8b542915475eec383fc6644384f4fbc6a31a1861cbc8932a16af3b46fdbf38625298488912c9082fde71
   languageName: node
   linkType: hard
 
@@ -1676,6 +1703,18 @@ __metadata:
     "@thi.ng/checks": "npm:^3.6.19"
     "@thi.ng/errors": "npm:^2.5.22"
   checksum: 10c0/16533748f243f565e9b69745ee7376f4cc46655f928beccb7cdd0df3563676309110c8262a90d267331cd42f1fb01d5412dab4d98f9ca18d71dacbdc6fbef67c
+  languageName: node
+  linkType: hard
+
+"@thi.ng/strings@npm:^3.9.0":
+  version: 3.9.0
+  resolution: "@thi.ng/strings@npm:3.9.0"
+  dependencies:
+    "@thi.ng/api": "npm:^8.11.16"
+    "@thi.ng/errors": "npm:^2.5.22"
+    "@thi.ng/hex": "npm:^2.3.60"
+    "@thi.ng/memoize": "npm:^4.0.6"
+  checksum: 10c0/68bc52d6e7cb91595a88cc0ffff0f6ac7d5aec3d11d15c653e25660cbfb0ae8953e8f0c63e82644abaa7b355d60a8d511624162e1748380a9df2e05b90c46c45
   languageName: node
   linkType: hard
 
@@ -1985,13 +2024,6 @@ __metadata:
     shebang-command: "npm:^2.0.0"
     which: "npm:^2.0.1"
   checksum: 10c0/053ea8b2135caff68a9e81470e845613e374e7309a47731e81639de3eaeb90c3d01af0e0b44d2ab9d50b43467223b88567dfeb3262db942dc063b9976718ffc1
-  languageName: node
-  linkType: hard
-
-"date-fns@npm:^4.1.0":
-  version: 4.1.0
-  resolution: "date-fns@npm:4.1.0"
-  checksum: 10c0/b79ff32830e6b7faa009590af6ae0fb8c3fd9ffad46d930548fbb5acf473773b4712ae887e156ba91a7b3dc30591ce0f517d69fd83bd9c38650fdc03b4e0bac8
   languageName: node
   linkType: hard
 
@@ -2797,8 +2829,8 @@ __metadata:
     "@babel/preset-typescript": "npm:^7.26.0"
     "@biomejs/biome": "npm:^1.9.4"
     "@thi.ng/api": "npm:^8.11.16"
+    "@thi.ng/date": "npm:^2.7.38"
     "@thi.ng/paths": "npm:^5.1.97"
-    date-fns: "npm:^4.1.0"
     typescript: "npm:^5.7.2"
     vite: "npm:^6.0.7"
     vitest: "npm:^3.0.2"

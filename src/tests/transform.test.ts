@@ -18,6 +18,18 @@ describe('transforms', () => {
 		});
 	});
 
+	describe('xf_dateformat', () => {
+		it('basic date formatting', () => {
+			const date = new Date(2022, 11, 31, 3, 30, 2);
+			const result = transform([
+				'xf_dateformat',
+				date,
+				['MM', '/', 'dd', '/', 'yyyy', ' @ ', 'h', ':', 'mm', 'a'],
+			]);
+			expect(result).toBe('12/31/2022 @ 3:30am');
+		});
+	});
+
 	describe('xf_first', () => {
 		it('the first item in the list is returned', () => {
 			const result = transform([
