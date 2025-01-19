@@ -1,23 +1,21 @@
-import type { NumOrString } from '@thi.ng/api';
+import type { NumOrString } from '@thi.ng/api/prim';
 import { getInUnsafe } from '@thi.ng/paths/get-in';
 import { mutInUnsafe } from '@thi.ng/paths/mut-in';
-import {
-	UNRESOLVED,
-	Reference,
-	Transform,
-	Variable,
-	type AbsoluteArray,
-	type AbsoluteString,
-	type IResolvable,
-	type Path,
-	type ReferenceDef,
-	type ReferencePathPart,
-	type RelativeArray,
-	type RelativeString,
-	type ResolveContext,
-	type TransformDef,
-	type VariableArray,
-	type VariableString,
+import { UNRESOLVED, Reference, Transform, Variable } from './api';
+import type {
+	AbsoluteArray,
+	AbsoluteString,
+	IResolvable,
+	Path,
+	ReferenceDef,
+	ReferencePathPart,
+	RelativeArray,
+	RelativeString,
+	Resolvable,
+	ResolveContext,
+	TransformDef,
+	VariableArray,
+	VariableString,
 } from './api';
 import {
 	canTransform,
@@ -407,7 +405,10 @@ const resolveVariable = (
 	return variable;
 };
 
-const resolveObject = (obj: any, ctx: ResolveContext) => {
+const resolveObject = (
+	obj: Record<string, Resolvable>,
+	ctx: ResolveContext,
+): Record<string, Resolvable> => {
 	for (const k in obj) {
 		if (isResolvable(obj[k]) && obj[k].value !== UNRESOLVED) {
 			continue;
@@ -438,7 +439,7 @@ const resolveObject = (obj: any, ctx: ResolveContext) => {
 	return obj;
 };
 
-const resolveArray = (arr: any[], ctx: ResolveContext) => {
+const resolveArray = (arr: Resolvable[], ctx: ResolveContext): Resolvable[] => {
 	for (let i = 0; i < arr.length; i++) {
 		if (isResolvable(arr[i])) {
 			continue;
@@ -451,13 +452,14 @@ const resolveArray = (arr: any[], ctx: ResolveContext) => {
 };
 
 export const resolve = (
-	obj: any,
+	obj: Resolvable,
 	vars: Record<string, any> = {},
 	path: NumOrString[] = [],
-	root?: any,
+	root?: Resolvable,
 	debugScope?: string[],
-) => {
+): Resolvable => {
 	root = root || obj;
+
 	const ctx: ResolveContext = {
 		currentLocation: path,
 		root,
@@ -465,30 +467,49 @@ export const resolve = (
 		debugScope,
 	};
 
-	if (isVariableString(obj) || isVariableArray(obj)) {
+	if (
+		isVariableString(obj) ||
+		isVariableArray(obj) ||
+		obj instanceof Variable
+	) {
 		return resolveVariable(obj, ctx);
 	}
 
-	if (isTransform(obj)) {
+	if (isTransform(obj) || obj instanceof Transform) {
 		return resolveTransform(obj, ctx);
 	}
 
-	if (isRef(obj)) {
+	if (isRef(obj) || obj instanceof Reference) {
 		return resolveRef(obj, ctx);
-	}
-
-	if (isRecord(obj)) {
-		return resolveObject(obj, ctx);
 	}
 
 	if (Array.isArray(obj)) {
 		return resolveArray(obj, ctx);
 	}
 
+	if (isRecord(obj)) {
+		return resolveObject(obj, ctx);
+	}
+
 	return obj;
 };
 
-const resolveObjectImmediate = (obj: any, ctx: ResolveContext) => {
+export const resolveAt = (
+	obj: Resolvable,
+	path: NumOrString[],
+	vars: Record<string, any> = {},
+): Resolvable => {
+	const resolved = resolve(obj, vars, path);
+
+	const result = getInUnsafe(resolved, path);
+
+	return result;
+};
+
+const resolveObjectImmediate = (
+	obj: Record<string, Resolvable>,
+	ctx: ResolveContext,
+): Record<string, any> => {
 	const result: Record<string, any> = {};
 
 	for (const k in obj) {
@@ -505,7 +526,10 @@ const resolveObjectImmediate = (obj: any, ctx: ResolveContext) => {
 	return result;
 };
 
-const resolveArrayImmediate = (array: any[], ctx: ResolveContext) => {
+const resolveArrayImmediate = (
+	array: Resolvable[],
+	ctx: ResolveContext,
+): any[] => {
 	const result: any[] = [];
 
 	for (const x of array) {
@@ -518,32 +542,36 @@ const resolveArrayImmediate = (array: any[], ctx: ResolveContext) => {
 };
 
 export const resolveImmediate = (
-	obj: any,
+	obj: Resolvable,
 	vars: Record<string, any> = {},
 	path: NumOrString[] = [],
-	root?: any,
-) => {
+	root?: Resolvable,
+): any => {
 	root = root || obj;
 	const ctx = { currentLocation: path, root, vars };
 
-	if (isVariableString(obj) || isVariableArray(obj)) {
+	if (
+		isVariableString(obj) ||
+		isVariableArray(obj) ||
+		obj instanceof Variable
+	) {
 		return resolveVariable(obj, ctx, false);
 	}
 
-	if (isTransform(obj)) {
+	if (isTransform(obj) || obj instanceof Transform) {
 		return resolveTransform(obj, ctx, false);
 	}
 
-	if (isRef(obj)) {
+	if (isRef(obj) || obj instanceof Reference) {
 		return resolveRef(obj, ctx, false);
-	}
-
-	if (isRecord(obj)) {
-		return resolveObjectImmediate(obj, ctx);
 	}
 
 	if (Array.isArray(obj)) {
 		return resolveArrayImmediate(obj, ctx);
+	}
+
+	if (isRecord(obj)) {
+		return resolveObjectImmediate(obj, ctx);
 	}
 
 	return obj;

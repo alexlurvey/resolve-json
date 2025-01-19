@@ -21,6 +21,18 @@ export type ReferenceDef =
 	| RelativeString
 	| RelativeArray;
 
+type Primitive = string | number | boolean | null;
+
+export type Json<Additional = Primitive> =
+	| Primitive
+	| Additional
+	| Json<Additional>[]
+	| { [k: string]: Json<Additional> };
+
+export type Resolvable = Json<ResolvableDef | Reference | Transform | Variable>;
+
+export type JsonObject = Record<string, Json>;
+
 export type XF =
 	| 'xf_bool'
 	| 'xf_concat'
@@ -84,7 +96,7 @@ export interface IResolvable {
 
 export type ResolveContext = {
 	currentLocation: NumOrString[];
-	root: Record<string, any>;
+	root: Resolvable;
 	vars: Record<string, any>;
 	debugScope?: string[];
 };
