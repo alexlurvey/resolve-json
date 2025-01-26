@@ -3,7 +3,6 @@ import type { NumOrString } from '@thi.ng/api';
 export const UNRESOLVED = Symbol('__UNRESOLVED__');
 
 export type VariableString = `$${string}`;
-export type VariableArray = [`$${string}`, ...ReferencePathPart[]];
 export type AbsoluteString = `@/${string}`;
 export type AbsoluteArray = [`@@/${string}`, ...ReferencePathPart[]];
 export type RelativeString = `@${string}`;
@@ -13,7 +12,7 @@ export type ReferencePathPart = string | ResolvableDef;
 
 export type Path = (NumOrString | typeof UNRESOLVED)[];
 
-export type VariableDef = VariableArray | VariableString;
+export type VariableDef = `$${string}`;
 
 export type ReferenceDef =
 	| AbsoluteString
