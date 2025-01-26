@@ -14,7 +14,6 @@ import type {
 	Resolvable,
 	ResolveContext,
 	TransformDef,
-	VariableArray,
 	VariableString,
 } from './api';
 import {
@@ -31,7 +30,6 @@ import {
 	isSomeTransform,
 	isTransform,
 	isValidPath,
-	isVariableArray,
 	isVariableString,
 } from './checks';
 import { transform } from './transform';
@@ -196,18 +194,6 @@ const resolveArgs = (
 		} else if (isVariableString(part)) {
 			const k = part === '$' ? part : part.substring(1);
 			path.push(vars[k] ?? UNRESOLVED);
-		} else if (isVariableArray(part)) {
-			const [v, ...args] = part;
-			const key = v === '$' ? '$' : v.slice(1);
-			const resolved = resolveArgs(args, ctx);
-
-			if (isValidPath(resolved.path)) {
-				const v = getInUnsafe(vars[key], resolved.path);
-				references.push(new Variable(part, currentLocation, { value: v }));
-				path.push(v);
-			} else {
-				path.push(UNRESOLVED);
-			}
 		} else if (isAbsoluteArray(part)) {
 			const expanded = expandRef(part, ctx);
 			if (isValidPath(expanded.path)) {
@@ -365,7 +351,7 @@ const resolveTransform = (
 };
 
 const resolveVariable = (
-	def: Variable | VariableString | VariableArray,
+	def: Variable | VariableString,
 	ctx: ResolveContext,
 	mutateRoot = true,
 ) => {
@@ -382,21 +368,7 @@ const resolveVariable = (
 
 	const value = ctx.vars[getKey(lookup)] ?? UNRESOLVED;
 
-	if (isVariableArray(variable.definition)) {
-		const [_, ...args] = variable.definition;
-
-		const resolved = resolveArgs(args, ctx);
-
-		if (isValidPath(resolved.path)) {
-			variable.setValue(getInUnsafe(value, resolved.path));
-		}
-
-		if (resolved.references) {
-			variable.setReferences(resolved.references);
-		}
-	} else {
-		variable.setValue(value);
-	}
+	variable.setValue(value);
 
 	if (mutateRoot && !isCurrentLocationVisited(ctx)) {
 		mutInUnsafe(ctx.root, ctx.currentLocation, variable);
@@ -419,11 +391,7 @@ const resolveObject = (
 			currentLocation: [...ctx.currentLocation, k],
 		};
 
-		if (
-			obj[k] instanceof Variable ||
-			isVariableString(obj[k]) ||
-			isVariableArray(obj[k])
-		) {
+		if (obj[k] instanceof Variable || isVariableString(obj[k])) {
 			resolveVariable(obj[k], downLevelCtx);
 		} else if (obj[k] instanceof Transform || isTransform(obj[k])) {
 			resolveTransform(obj[k], downLevelCtx);
@@ -467,11 +435,7 @@ export const resolve = (
 		debugScope,
 	};
 
-	if (
-		isVariableString(obj) ||
-		isVariableArray(obj) ||
-		obj instanceof Variable
-	) {
+	if (isVariableString(obj) || obj instanceof Variable) {
 		return resolveVariable(obj, ctx);
 	}
 
@@ -550,11 +514,7 @@ export const resolveImmediate = (
 	root = root || obj;
 	const ctx = { currentLocation: path, root, vars };
 
-	if (
-		isVariableString(obj) ||
-		isVariableArray(obj) ||
-		obj instanceof Variable
-	) {
+	if (isVariableString(obj) || obj instanceof Variable) {
 		return resolveVariable(obj, ctx, false);
 	}
 

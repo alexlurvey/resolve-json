@@ -14,7 +14,6 @@ import {
 	type RelativeString,
 	type SomeTransform,
 	type TransformDef,
-	type VariableArray,
 	type VariableString,
 } from './api';
 
@@ -32,10 +31,6 @@ export const isRecord = (x: any): x is Record<string, any> => {
 
 export const isVariableString = (x: any): x is VariableString => {
 	return typeof x === 'string' && x.startsWith('$');
-};
-
-export const isVariableArray = (x: any): x is VariableArray => {
-	return Array.isArray(x) && typeof x[0] === 'string' && x[0].startsWith('$');
 };
 
 export const isAbsoluteString = (x: any): x is AbsoluteString => {
@@ -90,7 +85,6 @@ export const isRef = (x: any): x is ReferenceDef => {
 		isRelativeString(x) ||
 		isAbsoluteArray(x) ||
 		isRelativeArray(x) ||
-		isVariableString(x) ||
-		isVariableArray(x)
+		isVariableString(x)
 	);
 };

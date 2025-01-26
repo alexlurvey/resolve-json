@@ -32,13 +32,6 @@ describe('resolve', () => {
 			expect(result.value).toBe('something');
 		});
 
-		it('variable array', () => {
-			const vars = { test: { value: 'vvv' } };
-			const src = { value: ['$test', 'value'] };
-			const result = toPlainObject(resolve(src, vars));
-			expect(result.value).toBe('vvv');
-		});
-
 		it('absolute array refrence', () => {
 			const src = {
 				lookup: {
@@ -196,7 +189,11 @@ describe('resolve', () => {
 					activity: 'Activity',
 				},
 				__data: {
-					client_client: ['xf_join', '/activity/', ['$activity', 'id']],
+					client_client: [
+						'xf_join',
+						'/activity/',
+						['xf_pick', '$activity', ['id']],
+					],
 				},
 				usernames: [
 					'xf_map',
