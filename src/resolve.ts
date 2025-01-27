@@ -405,24 +405,24 @@ const resolveObject = (
 };
 
 const resolveArray = (arr: Resolvable[], ctx: ResolveContext): Resolvable[] => {
-	for (let i = 0; i < arr.length; i++) {
-		if (isResolvable(arr[i])) {
+	for (const [i, x] of arr.entries()) {
+		if (isResolvable(x) && x.value !== UNRESOLVED) {
 			continue;
 		}
-		const currentLocation = [...ctx.currentLocation, i];
-		const v = resolve(arr[i], ctx.vars, currentLocation, ctx.root);
-		mutInUnsafe(ctx.root, currentLocation, v);
+		const loc = [...ctx.currentLocation, i];
+		const v = resolve(arr[i], ctx.vars, loc, ctx.root);
+		mutInUnsafe(ctx.root, loc, v);
 	}
 	return arr;
 };
 
 export const resolve = (
-	obj: Resolvable,
+	obj: Resolvable | Resolvable[],
 	vars: Record<string, any> = {},
 	path: NumOrString[] = [],
-	root?: Resolvable,
+	root?: Resolvable | Resolvable[],
 	debugScope?: string[],
-): Resolvable => {
+): any => {
 	root = root || obj;
 
 	const ctx: ResolveContext = {
@@ -459,7 +459,7 @@ export const resolveAt = (
 	obj: Resolvable,
 	path: NumOrString[],
 	vars: Record<string, any> = {},
-): Resolvable => {
+): any => {
 	const resolved = resolve(obj, vars, path);
 
 	const result = getInUnsafe(resolved, path);
@@ -474,13 +474,8 @@ const resolveObjectImmediate = (
 	const result: Record<string, any> = {};
 
 	for (const k in obj) {
-		const resolved = resolveImmediate(
-			obj[k],
-			ctx.vars,
-			[...ctx.currentLocation, k],
-			ctx.root,
-		);
-
+		const loc = [...ctx.currentLocation, k];
+		const resolved = resolveImmediate(obj[k], ctx.vars, loc, ctx.root);
 		result[k] = deref(resolved);
 	}
 
@@ -493,9 +488,9 @@ const resolveArrayImmediate = (
 ): any[] => {
 	const result: any[] = [];
 
-	for (const x of array) {
-		const resolved = resolveImmediate(x, ctx.vars, [], ctx.root);
-
+	for (const [i, x] of array.entries()) {
+		const loc = [...ctx.currentLocation, i];
+		const resolved = resolveImmediate(x, ctx.vars, loc, ctx.root);
 		result.push(deref(resolved));
 	}
 
@@ -503,10 +498,10 @@ const resolveArrayImmediate = (
 };
 
 export const resolveImmediate = (
-	obj: Resolvable,
+	obj: Resolvable | Resolvable[],
 	vars: Record<string, any> = {},
 	path: NumOrString[] = [],
-	root?: Resolvable,
+	root?: Resolvable | Resolvable[],
 ): any => {
 	root = root || obj;
 	const ctx = { currentLocation: path, root, vars };

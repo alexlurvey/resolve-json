@@ -295,7 +295,7 @@ describe('resolve', () => {
 				},
 				input_type: ['@@inputs', '$condition'],
 				label: ['@@labels', '@input_type'],
-				size: ['@sizes', '@input_type'],
+				size: ['@@sizes', '@input_type'],
 			};
 
 			let resolved = resolve(data);
@@ -321,6 +321,19 @@ describe('resolve', () => {
 			const result = toPlainObject(resolved);
 			expect(result.input_type).toBe('single');
 			expect(result.description).toBe('Option 1');
+		});
+
+		it('an array of references re-resolves correctly', () => {
+			const src = {
+				array: ['$one', '$two', '@/three'],
+				three: '$three',
+			};
+
+			let result: any = resolve(src, { one: 1, two: 2 });
+			expect(toPlainObject(result).array).toEqual([1, 2, UNRESOLVED]);
+
+			result = resolve(src, { one: 1, two: 2, three: 3 });
+			expect(toPlainObject(result).array).toEqual([1, 2, 3]);
 		});
 	});
 });
