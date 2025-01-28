@@ -177,7 +177,7 @@ describe('resolve', () => {
 				field: {
 					field_type: 'dropdown',
 				},
-				object_type: 'client_client',
+				object_type: 'client',
 				users: [
 					{ id: 'aaa', first_name: 'Alice', last_name: 'Smith' },
 					{ id: 'bbb', first_name: 'Frank', last_name: 'Smith' },
@@ -185,15 +185,11 @@ describe('resolve', () => {
 				],
 			};
 			const src = {
-				__labels: {
+				labels: {
 					activity: 'Activity',
 				},
-				__data: {
-					client_client: [
-						'xf_join',
-						'/activity/',
-						['xf_pick', '$activity', ['id']],
-					],
+				data: {
+					client: ['xf_join', '/activity/', ['xf_pick', '$activity', ['id']]],
 				},
 				usernames: [
 					'xf_map',
@@ -209,8 +205,8 @@ describe('resolve', () => {
 				],
 				step_data: {
 					urls: {
-						absolute: ['@@/__data', '$object_type'],
-						relative: ['@@../../__data', '$object_type'],
+						absolute: ['@@/data', '$object_type'],
+						relative: ['@@../../data', '$object_type'],
 					},
 				},
 			};

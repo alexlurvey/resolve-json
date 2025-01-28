@@ -5,8 +5,23 @@ import { transform } from '../transform';
 
 describe('transforms', () => {
 	describe('xf_bool', () => {
-		it('accepts multiple arguments and ANDs them together', () => {
+		it('resolves to true', () => {
+			const result = transform(['xf_bool', true, 1, 'hello', {}, []]);
+			expect(result).toBe(true);
+		});
+
+		it('resolves to false due to presence of zero', () => {
 			const result = transform(['xf_bool', true, {}, [], 42, 0]);
+			expect(result).toBe(false);
+		});
+
+		it('resolves to false due to presence of empty string', () => {
+			const result = transform(['xf_bool', true, {}, [], 42, '']);
+			expect(result).toBe(false);
+		});
+
+		it('resolves to false due to presence of false', () => {
+			const result = transform(['xf_bool', true, {}, [], 42, false]);
 			expect(result).toBe(false);
 		});
 	});
@@ -15,6 +30,11 @@ describe('transforms', () => {
 		it('array values are flattened and joined with other arguments', () => {
 			const result = transform(['xf_concat', 1, 2, [3, 4], 5]);
 			expect(result).toEqual([1, 2, 3, 4, 5]);
+		});
+
+		it('wraps a single value in an array', () => {
+			const result = transform(['xf_concat', 12]);
+			expect(result).toEqual([12]);
 		});
 	});
 
