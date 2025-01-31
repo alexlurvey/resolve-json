@@ -36,9 +36,7 @@ import { transform } from './transform';
 import { deref } from './utils';
 
 type ExpandResult = {
-	// TOOD: with transforms and references being equal, path name is now confusing/inaccurate
-	// For transforms, these are arguments (which _could_ be something other than string | number)
-	path: Path;
+	values: any[];
 	references: IResolvable[];
 };
 
@@ -116,7 +114,7 @@ const resolveArgs = (
 	ctx: ResolveContext,
 ): ExpandResult => {
 	const { currentLocation, root, vars } = ctx;
-	const path: Path = [];
+	const values = [];
 	const references: IResolvable[] = [];
 
 	for (const part of parts) {
@@ -129,87 +127,87 @@ const resolveArgs = (
 				xf.setReferences(expanded.references);
 			}
 
-			if (canTransform(expanded.path)) {
-				const v = transform([xform, ...expanded.path], ctx);
+			if (canTransform(expanded.values)) {
+				const v = transform([xform, ...expanded.values], ctx);
 				if (v !== undefined) {
 					xf.setValue(v);
-					path.push(v);
+					values.push(v);
 				} else {
-					path.push(UNRESOLVED);
+					values.push(UNRESOLVED);
 				}
 			} else {
-				path.push(UNRESOLVED);
+				values.push(UNRESOLVED);
 			}
 
 			references.push(xf);
 		} else if (isAbsoluteString(part)) {
 			const expanded = expandRef(part, ctx);
-			if (isValidPath(expanded.path)) {
-				const v = getInRoot(root, expanded.path, vars);
+			if (isValidPath(expanded.values)) {
+				const v = getInRoot(root, expanded.values, vars);
 				references.push(
 					new Reference(part, currentLocation, {
-						abs_path: expanded.path,
+						abs_path: expanded.values,
 						value: v,
 					}),
 				);
-				path.push(v ?? UNRESOLVED);
+				values.push(v ?? UNRESOLVED);
 			} else {
-				path.push(UNRESOLVED);
+				values.push(UNRESOLVED);
 			}
 		} else if (isRelativeString(part)) {
 			const expanded = expandRef(part, ctx);
-			if (isValidPath(expanded.path)) {
-				const v = getInRoot(root, expanded.path, vars);
+			if (isValidPath(expanded.values)) {
+				const v = getInRoot(root, expanded.values, vars);
 				references.push(
 					new Reference(part, currentLocation, {
-						abs_path: expanded.path,
+						abs_path: expanded.values,
 						value: v,
 					}),
 				);
-				path.push(v ?? UNRESOLVED);
+				values.push(v ?? UNRESOLVED);
 			} else {
-				path.push(UNRESOLVED);
+				values.push(UNRESOLVED);
 			}
 		} else if (isVariableString(part)) {
 			const k = part === '$' ? part : part.substring(1);
-			path.push(vars[k] ?? UNRESOLVED);
+			values.push(vars[k] ?? UNRESOLVED);
 		} else if (isAbsoluteArray(part)) {
 			const expanded = expandRef(part, ctx);
-			if (isValidPath(expanded.path)) {
-				const v = getInRoot(root, expanded.path, vars);
+			if (isValidPath(expanded.values)) {
+				const v = getInRoot(root, expanded.values, vars);
 				references.push(
 					new Reference(part, currentLocation, {
-						abs_path: expanded.path,
+						abs_path: expanded.values,
 						value: v,
 						references: expanded.references,
 					}),
 				);
-				path.push(v ?? UNRESOLVED);
+				values.push(v ?? UNRESOLVED);
 			} else {
-				path.push(UNRESOLVED);
+				values.push(UNRESOLVED);
 			}
 		} else if (isRelativeArray(part)) {
 			const expanded = expandRef(part, ctx);
-			if (isValidPath(expanded.path)) {
-				const v = getInRoot(root, expanded.path, vars);
+			if (isValidPath(expanded.values)) {
+				const v = getInRoot(root, expanded.values, vars);
 				references.push(
 					new Reference(part, currentLocation, {
-						abs_path: expanded.path,
+						abs_path: expanded.values,
 						value: v,
 						references: expanded.references,
 					}),
 				);
 
-				path.push(v);
+				values.push(v);
 			} else {
-				path.push(UNRESOLVED);
+				values.push(UNRESOLVED);
 			}
 		} else {
-			path.push(part);
+			values.push(part);
 		}
 	}
 
-	return { path, references };
+	return { values, references };
 };
 
 /**
@@ -222,35 +220,35 @@ const resolveArgs = (
  */
 const expandRef = (ref: ReferenceDef, ctx: ResolveContext): ExpandResult => {
 	if (isAbsoluteString(ref)) {
-		return { path: pathFromString(ref), references: [] };
+		return { values: pathFromString(ref), references: [] };
 	}
 
 	if (isAbsoluteArray(ref)) {
 		const [start, ...rest] = ref;
-		const { path: p2, references } = resolveArgs(rest, ctx);
+		const { values: p2, references } = resolveArgs(rest, ctx);
 		const p1 = pathFromString(start);
-		return { path: [...p1, ...p2], references };
+		return { values: [...p1, ...p2], references };
 	}
 
 	if (isRelativeString(ref)) {
 		const p1 = ctx.currentLocation.slice(0, -1);
 		const p2 = pathFromString(ref);
-		return { path: absPath(...p1, ...p2), references: [] };
+		return { values: absPath(...p1, ...p2), references: [] };
 	}
 
 	if (isRelativeArray(ref)) {
 		const [start, ...rest] = ref;
-		const { path: p3, references } = resolveArgs(rest, ctx);
+		const { values: p3, references } = resolveArgs(rest, ctx);
 		const p1 = ctx.currentLocation.slice(0, -1);
 		const p2 = pathFromString(start);
 
 		return {
-			path: absPath(...p1, ...p2, ...p3),
+			values: absPath(...p1, ...p2, ...p3),
 			references,
 		};
 	}
 
-	return { path: [], references: [] };
+	return { values: [], references: [] };
 };
 
 const resolveRef = (
@@ -271,11 +269,11 @@ const resolveRef = (
 		reference.setReferences(resolved.references);
 	}
 
-	if (isValidPath(resolved.path)) {
-		const v = getInRoot(ctx.root, resolved.path, ctx.vars);
+	if (isValidPath(resolved.values)) {
+		const v = getInRoot(ctx.root, resolved.values, ctx.vars);
 		if (v) {
 			reference.setValue(v);
-			reference.setAbsPath(resolved.path);
+			reference.setAbsPath(resolved.values);
 		}
 	}
 
@@ -315,8 +313,8 @@ const resolveTransform = (
 		trans.setReferences(resolved.references);
 	}
 
-	if (canTransform(resolved.path)) {
-		const v = transform([xf, ...resolved.path], ctx);
+	if (canTransform(resolved.values)) {
+		const v = transform([xf, ...resolved.values], ctx);
 		if (v !== undefined) {
 			trans.setValue(v);
 		}

@@ -57,7 +57,7 @@ export type JoinTransform = ['xf_join', ...ResolvableDef[]];
 export type MapTransform = [
 	'xf_map',
 	ResolvableDef,
-	TransformDef | Path | Record<string, any>,
+	TransformDef | Record<string, any>,
 ];
 export type NotEqualTransform = [
 	'xf_not_eq',
