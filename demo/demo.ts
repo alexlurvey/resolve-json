@@ -1,9 +1,13 @@
-import { resolve } from '../src/resolve.ts';
+import { resolve, toPlainObject } from 'resolve-json';
 
 const config = {
 	descriptions: {
 		single: ['xf_pick', ['xf_hoist', '$value'], ['name']],
-		many: ['xf_map', '$value', ['xf_join', " '", ['$', 'name'], "'"]],
+		many: [
+			'xf_map',
+			'$value',
+			['xf_join', " '", ['xf_pick', '$', 'name'], "'"],
+		],
 	},
 	description: ['@@descriptions', '@input_type'],
 	inputs: {
@@ -27,3 +31,9 @@ resolved = resolve(resolved, {
 });
 
 console.log('resolved', resolved);
+
+const plain = toPlainObject(resolved);
+
+console.log('to plain object', plain);
+
+console.log("String'd", String(plain.description).trim());

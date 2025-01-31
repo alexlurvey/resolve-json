@@ -356,22 +356,8 @@ const resolveObject = (
 			continue;
 		}
 
-		const downLevelCtx = {
-			...ctx,
-			currentLocation: [...ctx.currentLocation, k],
-		};
-
-		if (obj[k] instanceof Variable || isVariableString(obj[k])) {
-			resolveVariable(obj[k], downLevelCtx);
-		} else if (obj[k] instanceof Transform || isTransform(obj[k])) {
-			resolveTransform(obj[k], downLevelCtx);
-		} else if (obj[k] instanceof Reference || isRef(obj[k])) {
-			resolveRef(obj[k], downLevelCtx);
-		} else if (Array.isArray(obj[k])) {
-			resolveArray(obj[k], downLevelCtx);
-		} else if (isRecord(obj[k])) {
-			obj[k] = resolveObject(obj[k], downLevelCtx);
-		}
+		const loc = [...ctx.currentLocation, k];
+		resolve(obj[k], ctx.vars, loc, ctx.root);
 	}
 
 	return obj;
