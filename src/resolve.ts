@@ -42,27 +42,6 @@ type ExpandResult = {
 	references: IResolvable[];
 };
 
-const shouldLog = (ctx: ResolveContext) => {
-	if (!ctx.debugScope) {
-		return false;
-	}
-
-	for (const [i, v] of ctx.debugScope.entries()) {
-		if (v !== ctx.currentLocation[i]) {
-			return false;
-		}
-	}
-
-	return true;
-};
-
-const __LOG__ = (ref: any, ctx: ResolveContext) => {
-	if (shouldLog(ctx)) {
-		console.log('resolving: ', ref);
-		console.log('ctx: ', ctx);
-	}
-};
-
 const isCurrentLocationVisited = (ctx: ResolveContext) => {
 	return isResolvable(getInUnsafe(ctx.root, ctx.currentLocation));
 };
@@ -282,8 +261,6 @@ const resolveRef = (
 	const reference =
 		ref instanceof Reference ? ref : new Reference(ref, ctx.currentLocation);
 
-	__LOG__(ref, ctx);
-
 	if (mutateRoot && !isCurrentLocationVisited(ctx)) {
 		mutInUnsafe(ctx.root, ctx.currentLocation, reference);
 	}
@@ -314,8 +291,6 @@ const resolveTransform = (
 		xform instanceof Transform
 			? xform
 			: new Transform(xform, ctx.currentLocation);
-
-	__LOG__(xform, ctx);
 
 	if (mutateRoot && !isCurrentLocationVisited(ctx)) {
 		mutInUnsafe(ctx.root, ctx.currentLocation, trans);
@@ -355,8 +330,6 @@ const resolveVariable = (
 	ctx: ResolveContext,
 	mutateRoot = true,
 ) => {
-	__LOG__(def, ctx);
-
 	const variable =
 		def instanceof Variable ? def : new Variable(def, ctx.currentLocation);
 
@@ -421,7 +394,6 @@ export const resolve = (
 	vars: Record<string, any> = {},
 	path: NumOrString[] = [],
 	root?: Resolvable | Resolvable[],
-	debugScope?: string[],
 ): any => {
 	root = root || obj;
 
@@ -429,7 +401,6 @@ export const resolve = (
 		currentLocation: path,
 		root,
 		vars,
-		debugScope,
 	};
 
 	if (isVariableString(obj) || obj instanceof Variable) {

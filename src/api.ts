@@ -97,7 +97,6 @@ export type ResolveContext = {
 	currentLocation: NumOrString[];
 	root: Resolvable;
 	vars: Record<string, any>;
-	debugScope?: string[];
 };
 
 type ReferenceOpts = {
