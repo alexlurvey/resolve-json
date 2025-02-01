@@ -331,5 +331,41 @@ describe('resolve', () => {
 			result = resolve(src, { one: 1, two: 2, three: 3 });
 			expect(toPlainObject(result).array).toEqual([1, 2, 3]);
 		});
+
+		it("nested references' references are re-resolved", () => {
+			const config = {
+				descriptions: {
+					single: ['xf_pick', ['xf_hoist', '$value'], ['name']],
+					many: [
+						'xf_map',
+						'$value',
+						['xf_join', " '", ['xf_pick', '$', 'name'], "'"],
+					],
+				},
+				description: ['@@descriptions', '@input_type'],
+				inputs: {
+					has: 'single',
+					has_not: 'single',
+					has_any: 'many',
+					has_none: 'multiselect',
+				},
+				input_type: ['@@inputs', '$condition'],
+			};
+
+			let resolved = resolve(config);
+
+			resolved = resolve(resolved, {
+				condition: 'has_any',
+				value: [{ name: 'Option 1' }, { name: 'Option 2' }],
+			});
+
+			const plain = toPlainObject(resolved);
+
+			expect(plain.description).not.toEqual(UNRESOLVED);
+
+			const description = String(plain.description).trim();
+
+			expect(description).toEqual("'Option 1', 'Option 2'");
+		});
 	});
 });

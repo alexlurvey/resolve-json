@@ -90,8 +90,19 @@ const getInRoot = (
 		const ctx = { currentLocation, root, vars };
 
 		if (res instanceof Reference) {
+			if (res.value === UNRESOLVED) {
+				resolveRef(res, ctx);
+			}
 			res = res.value;
 		} else if (res instanceof Transform) {
+			if (res.value === UNRESOLVED) {
+				resolveTransform(res, ctx);
+			}
+			res = res.value;
+		} else if (res instanceof Variable) {
+			if (res.value === UNRESOLVED) {
+				resolveVariable(res, ctx);
+			}
 			res = res.value;
 		} else if (isVariableString(res)) {
 			res = vars[res.slice(1)];

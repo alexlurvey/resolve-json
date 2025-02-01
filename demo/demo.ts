@@ -19,9 +19,9 @@ const config = {
 	input_type: ['@@inputs', '$condition'],
 };
 
-let resolved = resolve(config, {
-	condition: 'has_any',
-});
+let resolved = resolve(config);
+
+console.log('r1', resolved);
 
 console.log('__________________________________________');
 
@@ -30,7 +30,7 @@ resolved = resolve(resolved, {
 	value: [{ name: 'Option 1' }, { name: 'Option 2' }],
 });
 
-console.log('resolved', resolved);
+console.log('r2', resolved);
 
 const plain = toPlainObject(resolved);
 
