@@ -69,6 +69,16 @@ describe('resolve', () => {
 			const result = toPlainObject(resolve(src, vars));
 			expect(result.values).toEqual([1, 2, 3]);
 		});
+
+		it('relative reference used within array', () => {
+			const src = {
+				one: 1,
+				two: 2,
+				array: ['@one', ['@@two']],
+			};
+			const result = toPlainObject(resolve(src));
+			expect(result.array).toEqual([1, 2]);
+		});
 	});
 
 	describe('with variables', () => {

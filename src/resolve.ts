@@ -230,6 +230,8 @@ const resolveArgs = (
  * @returns
  */
 const expandRef = (ref: ReferenceDef, ctx: ResolveContext): ExpandResult => {
+	const isInArray = typeof ctx.currentLocation.at(-1) === 'number';
+
 	if (isAbsoluteString(ref)) {
 		return { values: pathFromString(ref), references: [] };
 	}
@@ -242,7 +244,7 @@ const expandRef = (ref: ReferenceDef, ctx: ResolveContext): ExpandResult => {
 	}
 
 	if (isRelativeString(ref)) {
-		const p1 = ctx.currentLocation.slice(0, -1);
+		const p1 = ctx.currentLocation.slice(0, isInArray ? -2 : -1);
 		const p2 = pathFromString(ref);
 		return { values: absPath(...p1, ...p2), references: [] };
 	}
@@ -250,7 +252,7 @@ const expandRef = (ref: ReferenceDef, ctx: ResolveContext): ExpandResult => {
 	if (isRelativeArray(ref)) {
 		const [start, ...rest] = ref;
 		const { values: p3, references } = resolveArgs(rest, ctx);
-		const p1 = ctx.currentLocation.slice(0, -1);
+		const p1 = ctx.currentLocation.slice(0, isInArray ? -2 : -1);
 		const p2 = pathFromString(start);
 
 		return {
