@@ -378,8 +378,7 @@ const resolveArray = (arr: Resolvable[], ctx: ResolveContext): Resolvable[] => {
 			continue;
 		}
 		const loc = [...ctx.currentLocation, i];
-		const v = resolve(arr[i], ctx.vars, loc, ctx.root);
-		mutInUnsafe(ctx.root, loc, v);
+		resolve(arr[i], ctx.vars, loc, ctx.root);
 	}
 	return arr;
 };
