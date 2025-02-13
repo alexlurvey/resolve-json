@@ -478,11 +478,13 @@ export const resolveImmediate = (
 	}
 
 	if (isTransform(obj) || obj instanceof Transform) {
-		return resolveTransform(obj, ctx, false);
+		const resolved = resolveTransform(obj, ctx, false);
+		return resolveImmediate(resolved.value, vars);
 	}
 
 	if (isRef(obj) || obj instanceof Reference) {
-		return resolveRef(obj, ctx, false);
+		const resolved = resolveRef(obj, ctx, false);
+		return resolveImmediate(resolved.value, vars);
 	}
 
 	if (Array.isArray(obj)) {

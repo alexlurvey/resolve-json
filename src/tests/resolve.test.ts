@@ -232,6 +232,36 @@ describe('resolve', () => {
 		});
 	});
 
+	describe('nested references', () => {
+		it('a relative reference to an array of absolute references is used as the source to an xf_map', () => {
+			const data = {
+				types: [
+					'@/inputs/has',
+					'@/inputs/has_not',
+					'@/inputs/has_any',
+					'@/inputs/has_none',
+				],
+				maps: ['xf_map', '@types', ['xf_join', '__', '$', '__']],
+				inputs: {
+					has: 'single',
+					has_not: 'single',
+					has_any: 'many',
+					has_none: 'multiselect',
+				},
+			};
+
+			const result = resolve(data);
+			const plain = toPlainObject(result);
+
+			expect(plain.maps).toEqual([
+				'__single__',
+				'__single__',
+				'__many__',
+				'__multiselect__',
+			]);
+		});
+	});
+
 	describe('re-resolving values', () => {
 		it('variables re-resolve successfully', () => {
 			const data = {
