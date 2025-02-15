@@ -156,16 +156,6 @@ export class Transform implements IResolvable {
 		this.value = value;
 	}
 
-	get isBooleanResult() {
-		return (
-			this.definition[0] === 'xf_bool' ||
-			this.definition[0] === 'xf_eq' ||
-			this.definition[0] === 'xf_invert' ||
-			this.definition[0] === 'xf_not_eq' ||
-			this.definition[0] === 'xf_some'
-		);
-	}
-
 	setReferences(refs: IResolvable[]) {
 		this.references = refs;
 	}
