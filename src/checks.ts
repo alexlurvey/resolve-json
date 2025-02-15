@@ -12,6 +12,7 @@ import {
 	type RelativeArray,
 	type ReferenceDef,
 	type RelativeString,
+	type ResolvableDef,
 	type SomeTransform,
 	type TransformDef,
 	type VariableString,
@@ -21,8 +22,17 @@ export const canTransform = (path: Path) => {
 	return path.every((x) => x !== UNRESOLVED);
 };
 
-export const isBooleanResultTransform = (xf: any): xf is Transform => {
-	return xf instanceof Transform && xf.isBooleanResult;
+export const isBooleanResultTransform = (
+	xf: ResolvableDef,
+): xf is TransformDef => {
+	return (
+		isTransform(xf) &&
+		(xf[0] === 'xf_bool' ||
+			xf[0] === 'xf_eq' ||
+			xf[0] === 'xf_invert' ||
+			xf[0] === 'xf_not_eq' ||
+			xf[0] === 'xf_some')
+	);
 };
 
 export const isRecord = (x: any): x is Record<string, any> => {

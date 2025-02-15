@@ -6,6 +6,11 @@ import { isBooleanResultTransform, isUnresovled } from './checks';
 import { resolveImmediate } from './resolve';
 import { deref } from './utils';
 
+type SomeOpts = {
+	returnVal?: any;
+	isBooleanResult: boolean;
+};
+
 const bool = (...args: any[]) => {
 	return args.every(Boolean);
 };
@@ -39,17 +44,12 @@ const eq = (a: any, b: any, returnVal?: any) => {
 const first = (refs: any[], resolver: (ref: any) => any) => {
 	for (const ref of deref(refs)) {
 		const resolved = resolver(ref);
-		if (isBooleanResultTransform(resolved)) {
-			if (resolved.value !== false) {
-				return resolved.value;
-			}
+
+		if (resolved === false || resolved === undefined) {
 			continue;
 		}
 
-		const res = deref(resolved);
-		if (!isUnresovled(res) && res !== undefined) {
-			return res;
-		}
+		return resolved;
 	}
 };
 
@@ -84,16 +84,20 @@ const pick = (src: object, path?: NumOrString[]) => {
 	return src;
 };
 
-const some = (src: any[], resolver: ($: any) => any, returnVal?: any) => {
-	const result = deref(src).some((x: any) => {
+const some = (src: any[], resolver: ($: any) => any, opts: SomeOpts) => {
+	const { isBooleanResult, returnVal } = opts;
+	const derefed = deref(src);
+
+	const result = derefed.some((x: any) => {
 		const resolved = resolver(x);
 
-		if (isBooleanResultTransform(resolved)) {
-			return resolved.value;
+		if (isBooleanResult && resolved === true) {
+			return true;
 		}
 
-		return deref(resolved) === x;
+		return resolved === x;
 	});
+
 	return Boolean(returnVal) && result ? returnVal : result;
 };
 
@@ -117,6 +121,7 @@ export const transform = (def: [XF, ...any[]], ctx?: ResolveContext): any => {
 		const resolver = ($: any) => {
 			return resolveImmediate($, vars, currentLocation, root);
 		};
+
 		return first(args[0], resolver);
 	}
 	if (xform === 'xf_hoist') {
@@ -148,6 +153,8 @@ export const transform = (def: [XF, ...any[]], ctx?: ResolveContext): any => {
 	}
 	if (xform === 'xf_some') {
 		const src = resolveImmediate(args[0], vars, currentLocation, root);
+		const isBooleanResult = isBooleanResultTransform(args[1]);
+		const opts = { isBooleanResult, returnVal: args[2] };
 
 		if (isUnresovled(src)) {
 			return undefined;
@@ -156,7 +163,8 @@ export const transform = (def: [XF, ...any[]], ctx?: ResolveContext): any => {
 		const resolver = ($: any) => {
 			return resolveImmediate(args[1], { ...vars, $ }, currentLocation, root);
 		};
-		return some(src, resolver, args[2]);
+
+		return some(src, resolver, opts);
 	}
 
 	throw Error(`Unknown transform ${xform}`);
