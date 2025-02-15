@@ -423,13 +423,13 @@ export const resolve = (
 };
 
 export const resolveAt = (
-	obj: Resolvable,
+	root: Resolvable,
 	path: NumOrString[],
 	vars: Record<string, any> = {},
 ): any => {
-	const resolved = resolve(obj, vars, path);
+	const src = getInUnsafe(root, path);
 
-	const result = getInUnsafe(resolved, path);
+	const result = resolve(src, vars, path, root);
 
 	return result;
 };
