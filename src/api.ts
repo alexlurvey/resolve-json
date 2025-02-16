@@ -1,4 +1,5 @@
 import type { NumOrString } from '@thi.ng/api';
+import { isResolvable } from './checks';
 
 export const UNRESOLVED = Symbol('__UNRESOLVED__');
 
@@ -137,6 +138,10 @@ export class Reference implements IResolvable {
 
 	setValue(value: any) {
 		this.value = value;
+
+		if (isResolvable(value)) {
+			this.references.push(value);
+		}
 	}
 }
 
@@ -162,6 +167,10 @@ export class Transform implements IResolvable {
 
 	setValue(value: any) {
 		this.value = value;
+
+		if (isResolvable(value)) {
+			this.references.push(value);
+		}
 	}
 }
 

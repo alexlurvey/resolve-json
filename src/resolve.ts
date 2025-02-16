@@ -87,7 +87,7 @@ const getInRoot = (
 	for (let i = 0; res != null && i <= n; i++) {
 		res = res[path[i]];
 		currentLocation.push(path[i]);
-		const ctx = { currentLocation, root, vars };
+		const ctx: ResolveContext = { currentLocation, root, vars };
 
 		if (res instanceof Reference) {
 			if (res.value === UNRESOLVED) {
@@ -159,6 +159,7 @@ const resolveArgs = (
 					new Reference(part, currentLocation, {
 						abs_path: expanded.values,
 						value: v,
+						references: expanded.references,
 					}),
 				);
 				values.push(v ?? UNRESOLVED);
@@ -173,6 +174,7 @@ const resolveArgs = (
 					new Reference(part, currentLocation, {
 						abs_path: expanded.values,
 						value: v,
+						references: expanded.references,
 					}),
 				);
 				values.push(v ?? UNRESOLVED);
@@ -233,7 +235,14 @@ const expandRef = (ref: ReferenceDef, ctx: ResolveContext): ExpandResult => {
 	const isInArray = typeof ctx.currentLocation.at(-1) === 'number';
 
 	if (isAbsoluteString(ref)) {
-		return { values: pathFromString(ref), references: [] };
+		const path = pathFromString(ref);
+		const value = resolveAt(ctx.root, path, ctx.vars);
+
+		if (isResolvable(value)) {
+			return { values: path, references: [value] };
+		}
+
+		return { values: path, references: [] };
 	}
 
 	if (isAbsoluteArray(ref)) {
@@ -246,7 +255,17 @@ const expandRef = (ref: ReferenceDef, ctx: ResolveContext): ExpandResult => {
 	if (isRelativeString(ref)) {
 		const p1 = ctx.currentLocation.slice(0, isInArray ? -2 : -1);
 		const p2 = pathFromString(ref);
-		return { values: absPath(...p1, ...p2), references: [] };
+		const path = absPath(...p1, ...p2);
+
+		if (isValidPath(path)) {
+			const value = resolveAt(ctx.root, path, ctx.vars);
+
+			if (isResolvable(value)) {
+				return { values: path, references: [value] };
+			}
+		}
+
+		return { values: path, references: [] };
 	}
 
 	if (isRelativeArray(ref)) {
@@ -312,6 +331,12 @@ const resolveTransform = (
 		isSomeTransform(trans.definition) ||
 		isFirstTransform(trans.definition)
 	) {
+		const expanded = resolveArgs([trans.definition[1]], ctx);
+
+		if (expanded.references.length) {
+			trans.setReferences(expanded.references);
+		}
+
 		const v = transform(trans.definition, ctx);
 		if (v !== undefined) {
 			trans.setValue(v);
@@ -393,11 +418,7 @@ export const resolve = (
 ): any => {
 	root = root || obj;
 
-	const ctx: ResolveContext = {
-		currentLocation: path,
-		root,
-		vars,
-	};
+	const ctx: ResolveContext = { currentLocation: path, root, vars };
 
 	if (isVariableString(obj) || obj instanceof Variable) {
 		return resolveVariable(obj, ctx);
@@ -471,7 +492,7 @@ export const resolveImmediate = (
 	root?: Resolvable | Resolvable[],
 ): any => {
 	root = root || obj;
-	const ctx = { currentLocation: path, root, vars };
+	const ctx: ResolveContext = { currentLocation: path, root, vars };
 
 	if (isVariableString(obj) || obj instanceof Variable) {
 		return resolveVariable(obj, ctx, false);
