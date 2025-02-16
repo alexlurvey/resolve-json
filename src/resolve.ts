@@ -7,6 +7,7 @@ import type {
 	AbsoluteString,
 	IResolvable,
 	Path,
+	PickPartial,
 	ReferenceDef,
 	ReferencePathPart,
 	RelativeArray,
@@ -75,11 +76,7 @@ const absPath = (...path: Path) => {
 	}, []);
 };
 
-const getInRoot = (
-	root: any,
-	path: NumOrString[],
-	vars: Record<string, string>,
-) => {
+const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
 	const n = path.length - 1;
 	const currentLocation: NumOrString[] = [];
 	let res = root;
@@ -87,7 +84,7 @@ const getInRoot = (
 	for (let i = 0; res != null && i <= n; i++) {
 		res = res[path[i]];
 		currentLocation.push(path[i]);
-		const ctx: ResolveContext = { currentLocation, root, vars };
+		const ctx: ResolveContext = { ...rctx, currentLocation };
 
 		if (res instanceof Reference) {
 			if (res.value === UNRESOLVED) {
@@ -105,7 +102,7 @@ const getInRoot = (
 			}
 			res = res.value;
 		} else if (isVariableString(res)) {
-			res = vars[res.slice(1)];
+			res = ctx.vars[res.slice(1)];
 		} else if (isRef(res)) {
 			const resolved = resolveRef(res, ctx);
 			res = resolved.value;
@@ -154,7 +151,7 @@ const resolveArgs = (
 		} else if (isAbsoluteString(part)) {
 			const expanded = expandRef(part, ctx);
 			if (isValidPath(expanded.values)) {
-				const v = getInRoot(root, expanded.values, vars);
+				const v = getInRoot(root, expanded.values, ctx);
 				references.push(
 					new Reference(part, currentLocation, {
 						abs_path: expanded.values,
@@ -169,7 +166,7 @@ const resolveArgs = (
 		} else if (isRelativeString(part)) {
 			const expanded = expandRef(part, ctx);
 			if (isValidPath(expanded.values)) {
-				const v = getInRoot(root, expanded.values, vars);
+				const v = getInRoot(root, expanded.values, ctx);
 				references.push(
 					new Reference(part, currentLocation, {
 						abs_path: expanded.values,
@@ -187,7 +184,7 @@ const resolveArgs = (
 		} else if (isAbsoluteArray(part)) {
 			const expanded = expandRef(part, ctx);
 			if (isValidPath(expanded.values)) {
-				const v = getInRoot(root, expanded.values, vars);
+				const v = getInRoot(root, expanded.values, ctx);
 				references.push(
 					new Reference(part, currentLocation, {
 						abs_path: expanded.values,
@@ -202,7 +199,7 @@ const resolveArgs = (
 		} else if (isRelativeArray(part)) {
 			const expanded = expandRef(part, ctx);
 			if (isValidPath(expanded.values)) {
-				const v = getInRoot(root, expanded.values, vars);
+				const v = getInRoot(root, expanded.values, ctx);
 				references.push(
 					new Reference(part, currentLocation, {
 						abs_path: expanded.values,
@@ -236,7 +233,7 @@ const expandRef = (ref: ReferenceDef, ctx: ResolveContext): ExpandResult => {
 
 	if (isAbsoluteString(ref)) {
 		const path = pathFromString(ref);
-		const value = resolveAt(ctx.root, path, ctx.vars);
+		const value = resolveAt(ctx.root, path, ctx);
 
 		if (isResolvable(value)) {
 			return { values: path, references: [value] };
@@ -258,7 +255,7 @@ const expandRef = (ref: ReferenceDef, ctx: ResolveContext): ExpandResult => {
 		const path = absPath(...p1, ...p2);
 
 		if (isValidPath(path)) {
-			const value = resolveAt(ctx.root, path, ctx.vars);
+			const value = resolveAt(ctx.root, path, ctx);
 
 			if (isResolvable(value)) {
 				return { values: path, references: [value] };
@@ -302,7 +299,7 @@ const resolveRef = (
 	}
 
 	if (isValidPath(resolved.values)) {
-		const v = getInRoot(ctx.root, resolved.values, ctx.vars);
+		const v = getInRoot(ctx.root, resolved.values, ctx);
 		if (v) {
 			reference.setValue(v);
 			reference.setAbsPath(resolved.values);
@@ -393,7 +390,7 @@ const resolveObject = (
 		}
 
 		const loc = [...ctx.currentLocation, k];
-		resolve(obj[k], ctx.vars, loc, ctx.root);
+		ctx.resolve(obj[k], { ...ctx, currentLocation: loc });
 	}
 
 	return obj;
@@ -405,20 +402,19 @@ const resolveArray = (arr: Resolvable[], ctx: ResolveContext): Resolvable[] => {
 			continue;
 		}
 		const loc = [...ctx.currentLocation, i];
-		resolve(arr[i], ctx.vars, loc, ctx.root);
+		ctx.resolve(arr[i], { ...ctx, currentLocation: loc });
 	}
 	return arr;
 };
 
 export const resolve = (
 	obj: Resolvable | Resolvable[],
-	vars: Record<string, any> = {},
-	path: NumOrString[] = [],
-	root?: Resolvable | Resolvable[],
+	context?: PickPartial<ResolveContext, 'root'>,
 ): any => {
-	root = root || obj;
-
-	const ctx: ResolveContext = { currentLocation: path, root, vars };
+	const ctx: ResolveContext = defContext({
+		...context,
+		root: context?.root ?? obj,
+	});
 
 	if (isVariableString(obj) || obj instanceof Variable) {
 		return resolveVariable(obj, ctx);
@@ -446,11 +442,11 @@ export const resolve = (
 export const resolveAt = (
 	root: Resolvable,
 	path: NumOrString[],
-	vars: Record<string, any> = {},
+	ctx: Omit<ResolveContext, 'currentLocation' | 'root'>,
 ): any => {
 	const src = getInUnsafe(root, path);
 
-	const result = resolve(src, vars, path, root);
+	const result = resolve(src, { ...ctx, currentLocation: path, root });
 
 	return result;
 };
@@ -492,7 +488,14 @@ export const resolveImmediate = (
 	root?: Resolvable | Resolvable[],
 ): any => {
 	root = root || obj;
-	const ctx: ResolveContext = { currentLocation: path, root, vars };
+
+	const ctx: ResolveContext = {
+		currentLocation: path,
+		root,
+		vars,
+		resolve: resolveImmediate,
+		resolveAt: resolveAt,
+	};
 
 	if (isVariableString(obj) || obj instanceof Variable) {
 		return resolveVariable(obj, ctx, false);
@@ -517,4 +520,19 @@ export const resolveImmediate = (
 	}
 
 	return obj;
+};
+
+export const defContext = (
+	ctx: Omit<
+		PickPartial<ResolveContext, 'currentLocation' | 'vars'>,
+		'resolve' | 'resolveAt'
+	>,
+): ResolveContext => {
+	return {
+		currentLocation: [],
+		vars: {},
+		resolve,
+		resolveAt,
+		...ctx,
+	};
 };

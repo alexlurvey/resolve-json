@@ -1,6 +1,9 @@
 import type { NumOrString } from '@thi.ng/api';
 import { isResolvable } from './checks';
 
+export type PickPartial<T, K extends keyof T> = Omit<T, K> &
+	Partial<Pick<T, K>>;
+
 export const UNRESOLVED = Symbol('__UNRESOLVED__');
 
 export type VariableString = `$${string}`;
@@ -86,7 +89,7 @@ export type TransformDef =
 export type ResolvableDef = ReferenceDef | TransformDef | VariableDef;
 
 export interface IResolvable {
-	definition: string | any[];
+	definition: ResolvableDef;
 	path: Path;
 	value: any;
 	references: IResolvable[];
@@ -94,10 +97,23 @@ export interface IResolvable {
 	setValue(v: any): void;
 }
 
+type ResolveFn = (
+	obj: Resolvable | Resolvable[],
+	context?: PickPartial<ResolveContext, 'root'>,
+) => any;
+
+type ResolveAtFn = (
+	root: Resolvable,
+	path: NumOrString[],
+	ctx: Omit<ResolveContext, 'currentLocation' | 'root'>,
+) => any;
+
 export type ResolveContext = {
 	currentLocation: NumOrString[];
-	root: Resolvable;
+	root: Resolvable | Resolvable[];
 	vars: Record<string, any>;
+	resolve: ResolveFn;
+	resolveAt: ResolveAtFn;
 };
 
 type ReferenceOpts = {
@@ -187,8 +203,8 @@ export class Variable implements IResolvable {
 		this.references = [];
 	}
 
-	setReferences(refs: IResolvable[]) {
-		this.references = refs;
+	setReferences(_refs: IResolvable[]) {
+		throw new Error('Method not implemented.');
 	}
 
 	setValue(v: any) {

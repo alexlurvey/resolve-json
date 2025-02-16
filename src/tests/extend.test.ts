@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { extend } from '../extend';
+import { defContext } from '../resolve';
 
 const withoutKeys = (
 	object: Record<string, any>,
@@ -20,11 +21,11 @@ const withoutXFKeys = (object: Record<string, any>) => {
 describe('extend', () => {
 	describe('xf_inherit', () => {
 		it('plain objects are returned and merged', () => {
-			const src = {
+			const root = {
 				xf_inherit: [{ two: 'two', three: 'three' }],
 				one: 'one',
 			};
-			const extended = extend(src);
+			const extended = extend(root, defContext({ root }));
 			const result = withoutXFKeys(extended);
 			expect(result).toEqual({
 				one: 'one',
@@ -34,7 +35,7 @@ describe('extend', () => {
 		});
 
 		it('references are resolved (with a variable)', () => {
-			const src = {
+			const root = {
 				lookup: {
 					client_client: {
 						two: 'two',
@@ -47,7 +48,7 @@ describe('extend', () => {
 				},
 			};
 			const vars = { object_type: 'client_client' };
-			const extended = extend(src, vars);
+			const extended = extend(root, defContext({ vars, root }));
 			const result = withoutXFKeys(extended.config);
 			expect(result).toEqual({
 				one: 'one',
@@ -57,7 +58,7 @@ describe('extend', () => {
 		});
 
 		it('transforms are resolved', () => {
-			const src = {
+			const root = {
 				xf_inherit: [
 					[
 						'xf_not_eq',
@@ -71,13 +72,13 @@ describe('extend', () => {
 				],
 				one: 'one',
 			};
-			const extended = extend(src);
+			const extended = extend(root, defContext({ root }));
 			const result = withoutXFKeys(extended);
 			expect(result).toEqual({ one: 'one', two: 'two', three: 'three' });
 		});
 
 		it('a transform can return a reference and both are resolved', () => {
-			const src = {
+			const root = {
 				shared_config: {
 					share_property: 'shared!',
 				},
@@ -86,13 +87,13 @@ describe('extend', () => {
 					one: 'one',
 				},
 			};
-			const extended = extend(src);
+			const extended = extend(root, defContext({ root }));
 			const result = withoutXFKeys(extended.config);
 			expect(result).toEqual({ share_property: 'shared!', one: 'one' });
 		});
 
 		it('inherited configs are overridden', () => {
-			const src = {
+			const root = {
 				xf_inherit: [
 					[
 						'xf_some',
@@ -108,7 +109,7 @@ describe('extend', () => {
 				two: 'two',
 				three: 'three',
 			};
-			const extended = extend(src);
+			const extended = extend(root, defContext({ root }));
 			const result = withoutXFKeys(extended);
 			expect(result).toEqual({ one: 'one', two: 'two', three: 'three' });
 		});
@@ -116,25 +117,25 @@ describe('extend', () => {
 
 	describe('xf_extend', () => {
 		it('values applied from xf_extend override existing values', () => {
-			const src = {
+			const root = {
 				one: 'one',
 				two: 'two',
 				three: 'three',
 				xf_extend: [['xf_eq', 1, 1, { one: 1, two: 2 }]],
 			};
-			const extended = extend(src);
+			const extended = extend(root, defContext({ root }));
 			const result = withoutXFKeys(extended);
 			expect(result).toEqual({ one: 1, two: 2, three: 'three' });
 		});
 	});
 
 	it('xf_extend values override those applied in from xf_inherit', () => {
-		const src = {
+		const root = {
 			three: 3,
 			xf_extend: [['xf_eq', 1, 1, { one: 1, two: 2 }]],
 			xf_inherit: [['xf_eq', 1, 1, { one: 'one', two: 'two' }]],
 		};
-		const extended = extend(src);
+		const extended = extend(root, defContext({ root }));
 		const result = withoutXFKeys(extended);
 		expect(result).toEqual({ one: 1, two: 2, three: 3 });
 	});

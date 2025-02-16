@@ -1,3 +1,4 @@
+import type { NumOrString } from '@thi.ng/api';
 import {
 	UNRESOLVED,
 	Reference,
@@ -75,7 +76,7 @@ export const isSomeTransform = (x: any): x is SomeTransform => {
 	return Array.isArray(x) && x[0] === 'xf_some';
 };
 
-export const isValidPath = (path: Path): path is (string | number)[] => {
+export const isValidPath = (path: Path): path is NumOrString[] => {
 	return !path.includes(UNRESOLVED);
 };
 

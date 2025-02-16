@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Reference, Transform, UNRESOLVED } from '../api';
-import { resolve } from '../resolve';
+import { defContext, resolve } from '../resolve';
 import { toPlainObject } from '../utils';
 
 describe('resolve', () => {
@@ -17,18 +17,18 @@ describe('resolve', () => {
 		});
 
 		it('relative string reference', () => {
-			const src = {
+			const root = {
 				one: 'one',
 				two: '@one',
 			};
-			const result = toPlainObject(resolve(src));
+			const result = toPlainObject(resolve(root));
 			expect(result.two).toBe('one');
 		});
 
 		it('variable string', () => {
 			const vars = { gimmesomething: 'something' };
-			const src = { value: '$gimmesomething' };
-			const result = toPlainObject(resolve(src, vars));
+			const root = { value: '$gimmesomething' };
+			const result = toPlainObject(resolve(root, defContext({ vars, root })));
 			expect(result.value).toBe('something');
 		});
 
@@ -58,7 +58,7 @@ describe('resolve', () => {
 
 		it('array of references', () => {
 			const vars = { three: 'three' };
-			const src = {
+			const root = {
 				lookup: {
 					one: 1,
 					two: 2,
@@ -66,7 +66,7 @@ describe('resolve', () => {
 				},
 				values: ['@/lookup/one', '@/lookup/two', ['@@/lookup', '$three']],
 			};
-			const result = toPlainObject(resolve(src, vars));
+			const result = toPlainObject(resolve(root, defContext({ vars, root })));
 			expect(result.values).toEqual([1, 2, 3]);
 		});
 
@@ -84,7 +84,7 @@ describe('resolve', () => {
 	describe('with variables', () => {
 		it('absolute array', () => {
 			const vars = { field_type: 'dropdown' };
-			const src = {
+			const root = {
 				lookup: {
 					dropdown: 'dd_value',
 				},
@@ -92,19 +92,19 @@ describe('resolve', () => {
 					value: ['@@/lookup', '$field_type'],
 				},
 			};
-			const result = toPlainObject(resolve(src, vars));
+			const result = toPlainObject(resolve(root, defContext({ vars, root })));
 			expect(result.nesting.value).toBe('dd_value');
 		});
 
 		it('relative array', () => {
 			const vars = { field_type: 'dropdown' };
-			const src = {
+			const root = {
 				lookup: {
 					dropdown: 'dd_value',
 				},
 				value: ['@@lookup', '$field_type'],
 			};
-			const result = toPlainObject(resolve(src, vars));
+			const result = toPlainObject(resolve(root, defContext({ vars, root })));
 			expect(result.value).toBe('dd_value');
 		});
 	});
@@ -112,7 +112,7 @@ describe('resolve', () => {
 	describe('nested references', () => {
 		it('absolute array w/ relative array', () => {
 			const vars = { field_type: 'dropdown' };
-			const src = {
+			const root = {
 				lookup: {
 					key: 'lookup_value',
 				},
@@ -123,13 +123,13 @@ describe('resolve', () => {
 				},
 				main_reference: ['@@/lookup', ['@@other_data', '$field_type', 'key']],
 			};
-			const result = toPlainObject(resolve(src, vars));
+			const result = toPlainObject(resolve(root, defContext({ vars, root })));
 			expect(result.main_reference).toBe('lookup_value');
 		});
 
 		it('relative array w/ absolute array', () => {
 			const vars = { field_type: 'dropdown' };
-			const src = {
+			const root = {
 				lookup: {
 					key: 'lookup_value',
 				},
@@ -140,7 +140,7 @@ describe('resolve', () => {
 				},
 				main_reference: ['@@lookup', ['@@/other_data', '$field_type', 'key']],
 			};
-			const result = toPlainObject(resolve(src, vars));
+			const result = toPlainObject(resolve(root, defContext({ vars, root })));
 			expect(result.main_reference).toBe('lookup_value');
 		});
 	});
@@ -194,7 +194,7 @@ describe('resolve', () => {
 					{ id: 'bbb', first_name: 'Zorp', last_name: 'Smith' },
 				],
 			};
-			const src = {
+			const root = {
 				labels: {
 					activity: 'Activity',
 				},
@@ -220,7 +220,7 @@ describe('resolve', () => {
 					},
 				},
 			};
-			const result = toPlainObject(resolve(src, vars));
+			const result = toPlainObject(resolve(root, defContext({ root, vars })));
 
 			expect(result.usernames).toEqual([
 				'"Alice Smith"',
@@ -264,52 +264,60 @@ describe('resolve', () => {
 
 	describe('re-resolving values', () => {
 		it('variables re-resolve successfully', () => {
-			const data = {
+			const root = {
 				testing: '$variable',
 			};
 
-			let resolved = resolve(data);
+			let resolved = resolve(root, defContext({ root }));
 
-			resolved = resolve(resolved, { variable: 'hello' });
+			resolved = resolve(
+				resolved,
+				defContext({ vars: { variable: 'hello' }, root }),
+			);
 
 			expect(resolved.testing.value).toBe('hello');
 		});
 
 		it('relative reference re-resolve successfully', () => {
-			const data = {
+			const root = {
 				testing: ['@@data', '$value'],
 				data: {
 					property: 123,
 				},
 			};
 
-			let resolved = resolve(data);
+			let resolved = resolve(root, defContext({ root }));
 
 			expect(resolved.testing).toBeInstanceOf(Reference);
 			expect(resolved.testing.value).toBe(UNRESOLVED);
 
-			resolved = resolve(resolved, { value: 'property' });
+			resolved = resolve(
+				resolved,
+				defContext({ root, vars: { value: 'property' } }),
+			);
 
 			expect(resolved.testing.value).toBe(123);
 		});
 
 		it('transforms re-resolve successfully', () => {
-			const data = {
+			const root = {
 				testing: ['xf_map', '$value', ['xf_pick', '$', ['value']]],
 			};
 
-			let resolved = resolve(data);
+			const vars = { value: [{ value: 1 }, { value: 2 }] };
+
+			let resolved = resolve(root, defContext({ root }));
 
 			expect(resolved.testing).toBeInstanceOf(Transform);
 			expect(resolved.testing.value).toBe(UNRESOLVED);
 
-			resolved = resolve(resolved, { value: [{ value: 1 }, { value: 2 }] });
+			resolved = resolve(resolved, defContext({ root, vars }));
 
 			expect(resolved.testing.value).toEqual([1, 2]);
 		});
 
 		it('re-resolving a string reference used within a reference is successful', () => {
-			const data = {
+			const root = {
 				descriptions: {
 					single: ['xf_pick', ['xf_hoist', '$value'], ['name']],
 					many: ['xf_map', '$value', ['xf_join', " '", ['$', 'name'], "'"]],
@@ -334,22 +342,31 @@ describe('resolve', () => {
 				size: ['@@sizes', '@input_type'],
 			};
 
-			let resolved = resolve(data);
+			let resolved = resolve(root, defContext({ root }));
 
 			expect(resolved.input_type).toBeInstanceOf(Reference);
 			expect(resolved.input_type.value).toBe(UNRESOLVED);
 
-			resolved = resolve(resolved, { condition: 'has' });
+			resolved = resolve(
+				resolved,
+				defContext({ vars: { condition: 'has' }, root: resolved }),
+			);
 
 			expect(resolved.input_type).toBeInstanceOf(Reference);
 			expect(resolved.input_type.value).toBe('single');
 			expect(resolved.description).toBeInstanceOf(Reference);
 			expect(resolved.description.value).toBe(UNRESOLVED);
 
-			resolved = resolve(resolved, {
-				condition: 'has',
-				value: [{ name: 'Option 1' }],
-			});
+			resolved = resolve(
+				resolved,
+				defContext({
+					root: resolved,
+					vars: {
+						condition: 'has',
+						value: [{ name: 'Option 1' }],
+					},
+				}),
+			);
 
 			expect(resolved.description).toBeInstanceOf(Reference);
 			expect(resolved.description.value).toBe('Option 1');
@@ -360,15 +377,21 @@ describe('resolve', () => {
 		});
 
 		it('an array of references re-resolves correctly', () => {
-			const src = {
+			const root = {
 				array: ['$one', '$two', '@/three'],
 				three: '$three',
 			};
 
-			let result: any = resolve(src, { one: 1, two: 2 });
+			let result: any = resolve(
+				root,
+				defContext({ root, vars: { one: 1, two: 2 } }),
+			);
 			expect(toPlainObject(result).array).toEqual([1, 2, UNRESOLVED]);
 
-			result = resolve(src, { one: 1, two: 2, three: 3 });
+			result = resolve(
+				result,
+				defContext({ root: result, vars: { one: 1, two: 2, three: 3 } }),
+			);
 			expect(toPlainObject(result).array).toEqual([1, 2, 3]);
 		});
 
@@ -394,10 +417,16 @@ describe('resolve', () => {
 
 			let resolved = resolve(config);
 
-			resolved = resolve(resolved, {
-				condition: 'has_any',
-				value: [{ name: 'Option 1' }, { name: 'Option 2' }],
-			});
+			resolved = resolve(
+				resolved,
+				defContext({
+					root: resolved,
+					vars: {
+						condition: 'has_any',
+						value: [{ name: 'Option 1' }, { name: 'Option 2' }],
+					},
+				}),
+			);
 
 			const plain = toPlainObject(resolved);
 

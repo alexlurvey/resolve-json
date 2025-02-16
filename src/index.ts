@@ -1,19 +1,23 @@
 import type { Resolvable } from './api';
-import { resolve as r, resolveAt as ra } from './resolve';
+import { defContext, resolve as r, resolveAt as rAt } from './resolve';
 
 export { toPlainObject } from './utils';
 
 export const resolve = (
-	source: Resolvable | Resolvable[],
-	variables: Record<string, any> = {},
+	root: Resolvable | Resolvable[],
+	vars: Record<string, any> = {},
 ): any => {
-	return r(source, variables);
+	const context = defContext({ root, vars });
+
+	return r(root, context);
 };
 
 export const resolveAt = (
-	source: Resolvable | Resolvable[],
+	root: Resolvable | Resolvable[],
 	path: (string | number)[],
-	variables: Record<string, any> = {},
+	vars: Record<string, any> = {},
 ): any => {
-	return ra(source, path, variables);
+	const context = defContext({ root, vars, currentLocation: path });
+
+	return rAt(root, path, context);
 };

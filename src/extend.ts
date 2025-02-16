@@ -1,27 +1,24 @@
-import type { ReferenceDef, TransformDef } from './api';
+import type { ReferenceDef, ResolveContext, TransformDef } from './api';
 import { isRecord, isRef, isTransform } from './checks';
 import { resolve } from './resolve';
 import { transform } from './transform';
 
 const resolveToObject = (
 	x: any,
-	vars: Record<string, any>,
-	currentLocation: (string | number)[],
-	root: Record<string, any>,
+	ctx: ResolveContext,
 ): Record<string, any> | null => {
 	if (isRecord(x)) {
 		return x;
 	}
 
 	if (isTransform(x)) {
-		const ctx = { currentLocation, root, vars };
 		const transformed = transform(x, ctx);
-		return resolveToObject(transformed, vars, currentLocation, root);
+		return resolveToObject(transformed, ctx);
 	}
 
 	if (isRef(x)) {
-		const resolved = resolve(x, vars, currentLocation, root);
-		return resolveToObject(resolved.value, vars, currentLocation, root);
+		const resolved = resolve(x, ctx);
+		return resolveToObject(resolved.value, ctx);
 	}
 
 	return null;
@@ -29,16 +26,14 @@ const resolveToObject = (
 
 const mergeXFs = (
 	array: (ReferenceDef | TransformDef | Record<string, any>)[],
-	vars: Record<string, any>,
-	currentLocation: (string | number)[],
-	root: Record<string, any>,
+	ctx: ResolveContext,
 ): Record<string, any> => {
 	if (!Array.isArray(array)) {
 		return {};
 	}
 
 	return array.reduce<Record<string, any>>((acc, arg) => {
-		const maybeObject = resolveToObject(arg, vars, currentLocation, root);
+		const maybeObject = resolveToObject(arg, ctx);
 
 		if (isRecord(maybeObject)) {
 			for (const [k, v] of Object.entries(maybeObject)) {
@@ -58,29 +53,28 @@ const mergeXFs = (
  */
 export const extend = (
 	obj: Record<string, any>,
-	vars: Record<string, any> = {},
-	currentLocation: (string | number)[] = [],
-	root?: any,
+	ctx: ResolveContext,
 ): Record<string, any> => {
 	if (!isRecord(obj)) {
 		return obj;
 	}
 
-	root = root || obj;
-
 	if ('xf_inherit' in obj) {
-		const resolved = mergeXFs(obj.xf_inherit, vars, currentLocation, root);
+		const resolved = mergeXFs(obj.xf_inherit, ctx);
 		obj = { ...resolved, ...obj };
 	}
 
 	if ('xf_extend' in obj) {
-		const resolved = mergeXFs(obj.xf_extend, vars, currentLocation, root);
+		const resolved = mergeXFs(obj.xf_extend, ctx);
 		obj = { ...obj, ...resolved };
 	}
 
 	for (const key in obj) {
 		if (isRecord(obj[key])) {
-			obj[key] = extend(obj[key], vars, [...currentLocation, key], root);
+			obj[key] = extend(obj[key], {
+				...ctx,
+				currentLocation: [...ctx.currentLocation, key],
+			});
 		}
 	}
 
