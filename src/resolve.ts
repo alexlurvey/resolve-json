@@ -1,7 +1,7 @@
 import type { NumOrString } from '@thi.ng/api/prim';
 import { getInUnsafe } from '@thi.ng/paths/get-in';
 import { mutInUnsafe } from '@thi.ng/paths/mut-in';
-import { UNRESOLVED, Reference, Transform, Variable } from './api';
+import { UNRESOLVED, Reference, Transform, Variable, Resource } from './api';
 import type {
 	AbsoluteArray,
 	AbsoluteString,
@@ -14,6 +14,7 @@ import type {
 	RelativeString,
 	Resolvable,
 	ResolveContext,
+	ResourceDef,
 	TransformDef,
 	VariableString,
 } from './api';
@@ -27,6 +28,7 @@ import {
 	isRelativeArray,
 	isRelativeString,
 	isResolvable,
+	isResource,
 	isSomeTransform,
 	isTransform,
 	isValidPath,
@@ -81,7 +83,11 @@ const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
 		currentLocation.push(path[i]);
 		const ctx: ResolveContext = { ...rctx, currentLocation };
 
-		if (res instanceof Reference) {
+		if (res instanceof Resource) {
+			if (res.value !== UNRESOLVED) {
+				res = res.value;
+			}
+		} else if (res instanceof Reference) {
 			if (res.value === UNRESOLVED) {
 				resolveRef(res, ctx);
 			}
@@ -96,6 +102,9 @@ const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
 				resolveVariable(res, ctx);
 			}
 			res = res.value;
+		} else if (isResource(res)) {
+			const resolved = resolveResource(res, ctx);
+			res = resolved.value;
 		} else if (isVariableString(res)) {
 			res = ctx.vars[res.slice(1)];
 		} else if (isRef(res)) {
@@ -147,6 +156,10 @@ const resolveArgs = (
 			const ref = resolveRef(part, next_ctx, false);
 			values.push(ref.value);
 			references.push(ref);
+		} else if (isResource(part)) {
+			const res = resolveResource(part, next_ctx, false);
+			values.push(res.value);
+			references.push(res);
 		} else {
 			values.push(part);
 		}
@@ -251,6 +264,23 @@ const resolveRef = (
 	return reference;
 };
 
+const resolveResource = (
+	ref: Resource | ResourceDef,
+	ctx: ResolveContext,
+	mutateRoot = true,
+) => {
+	const isVisited = ref instanceof Resource;
+	const resource = isVisited
+		? ref
+		: new Resource(ref, ctx.currentLocation, ctx);
+
+	if (mutateRoot && !isVisited) {
+		mutInUnsafe(ctx.root, ctx.currentLocation, resource);
+	}
+
+	return resource;
+};
+
 const resolveArgsForTransform = (
 	def: TransformDef,
 	ctx: ResolveContext,
@@ -287,6 +317,12 @@ const resolveTransform = (
 		if (isReadyToTransform && value !== undefined) {
 			xform.setValue(value);
 			xform.setReferences(resolved.references, ctx);
+		} else if (xform.resources.some((x) => x.value === UNRESOLVED)) {
+			const task = Promise.all(xform.resources).then(() => {
+				resolveAt(ctx.root, ctx.currentLocation, ctx); // todo
+				ctx.tasks = ctx.tasks.filter((x) => x !== task);
+			});
+			ctx.tasks.push(task);
 		}
 
 		return xform;
@@ -296,6 +332,14 @@ const resolveTransform = (
 		references: resolved.references,
 		value,
 	});
+
+	if (trans.resources.length) {
+		const task = Promise.all(trans.resources).then(() => {
+			resolveAt(ctx.root, ctx.currentLocation, ctx); // todo
+			ctx.tasks = ctx.tasks.filter((x) => x !== task);
+		});
+		ctx.tasks.push(task);
+	}
 
 	if (mutateRoot) {
 		mutInUnsafe(ctx.root, ctx.currentLocation, trans);
@@ -342,7 +386,11 @@ const resolveObject = (
 		}
 
 		const loc = [...ctx.currentLocation, k];
-		ctx.resolve(obj[k], { ...ctx, currentLocation: loc });
+		ctx.resolve(obj[k], {
+			...ctx,
+			stack: [...ctx.stack, k],
+			currentLocation: loc,
+		});
 	}
 
 	return obj;
@@ -354,7 +402,11 @@ const resolveArray = (arr: Resolvable[], ctx: ResolveContext): Resolvable[] => {
 			continue;
 		}
 		const loc = [...ctx.currentLocation, i];
-		ctx.resolve(arr[i], { ...ctx, currentLocation: loc });
+		ctx.resolve(arr[i], {
+			...ctx,
+			stack: [...ctx.stack, i],
+			currentLocation: loc,
+		});
 	}
 	return arr;
 };
@@ -363,7 +415,7 @@ export const resolve = (
 	obj: Resolvable | Resolvable[],
 	context?: PickPartial<ResolveContext, 'root'>,
 ): any => {
-	const ctx: ResolveContext = defContext({
+	const ctx = defContext({
 		...context,
 		root: context?.root ?? obj,
 	});
@@ -391,6 +443,45 @@ export const resolve = (
 	return obj;
 };
 
+export const resolveAsync = async (
+	obj: Resolvable | Resolvable[],
+	context?: PickPartial<ResolveContext, 'root'>,
+): Promise<any> => {
+	const ctx = defContextAsync({
+		...context,
+		root: context?.root ?? obj,
+	});
+
+	let res: any = obj;
+
+	if (isResource(obj) || obj instanceof Resource) {
+		res = resolveResource(obj, ctx);
+	} else if (isVariableString(obj) || obj instanceof Variable) {
+		res = resolveVariable(obj, ctx);
+	} else if (isTransform(obj) || obj instanceof Transform) {
+		res = resolveTransform(obj, ctx);
+	} else if (isRef(obj) || obj instanceof Reference) {
+		res = resolveRef(obj, ctx);
+	} else if (Array.isArray(obj)) {
+		res = resolveArray(obj, ctx);
+	} else if (isRecord(obj)) {
+		res = resolveObject(obj, ctx);
+	}
+
+	console.log('resolve - stack / tasks / obj', ctx.stack, ctx.tasks, obj);
+
+	// if (ctx.stack.length === 0) {
+
+	if (ctx.tasks.length) {
+		// console.log('current tasks', ctx.tasks);
+		await Promise.all(ctx.tasks);
+		return res;
+	}
+	// }
+
+	return res;
+};
+
 export const resolveAt = (
 	root: Resolvable,
 	path: NumOrString[],
@@ -399,6 +490,18 @@ export const resolveAt = (
 	const src = getInUnsafe(root, path);
 
 	const result = resolve(src, { ...ctx, currentLocation: path, root });
+
+	return result;
+};
+
+export const resolveAtAsync = (
+	root: Resolvable,
+	path: NumOrString[],
+	ctx: Omit<ResolveContext, 'currentLocation' | 'root'>,
+): Promise<any> => {
+	const src = getInUnsafe(root, path);
+
+	const result = resolveAsync(src, { ...ctx, currentLocation: path });
 
 	return result;
 };
@@ -438,6 +541,7 @@ export const resolveImmediate = (
 	vars: Record<string, any> = {},
 	path: NumOrString[] = [],
 	root?: Resolvable | Resolvable[],
+	stack: NumOrString[] = [],
 ): any => {
 	root = root || obj;
 
@@ -445,9 +549,15 @@ export const resolveImmediate = (
 		currentLocation: path,
 		root,
 		vars,
+		stack,
+		tasks: [],
 		resolve: resolveImmediate,
 		resolveAt: resolveAt,
 	};
+
+	if (isResource(obj) || obj instanceof Resource) {
+		return resolveResource(obj, ctx, false);
+	}
 
 	if (isVariableString(obj) || obj instanceof Variable) {
 		return resolveVariable(obj, ctx, false);
@@ -476,15 +586,34 @@ export const resolveImmediate = (
 
 export const defContext = (
 	ctx: Omit<
-		PickPartial<ResolveContext, 'currentLocation' | 'vars'>,
+		PickPartial<ResolveContext, 'currentLocation' | 'vars' | 'stack' | 'tasks'>,
 		'resolve' | 'resolveAt'
 	>,
 ): ResolveContext => {
 	return {
 		currentLocation: [],
 		vars: {},
+		stack: [],
+		tasks: [],
 		resolve,
 		resolveAt,
+		...ctx,
+	};
+};
+
+export const defContextAsync = (
+	ctx: Omit<
+		PickPartial<ResolveContext, 'currentLocation' | 'vars' | 'stack' | 'tasks'>,
+		'resolve' | 'resolveAt'
+	>,
+): ResolveContext => {
+	return {
+		currentLocation: [],
+		vars: {},
+		stack: [],
+		tasks: [],
+		resolve: resolveAsync,
+		resolveAt: resolveAtAsync,
 		...ctx,
 	};
 };

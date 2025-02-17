@@ -1,5 +1,6 @@
 import type { NumOrString } from '@thi.ng/api';
 import { isResolvable } from './checks';
+import { collectResources } from './utils';
 
 export type PickPartial<T, K extends keyof T> = Omit<T, K> &
 	Partial<Pick<T, K>>;
@@ -86,7 +87,11 @@ export type TransformDef =
 	| PickTransform
 	| SomeTransform;
 
-export type ResolvableDef = ReferenceDef | TransformDef | VariableDef;
+export type ResolvableDef =
+	| ReferenceDef
+	| ResourceDef
+	| TransformDef
+	| VariableDef;
 
 export interface IResolvable {
 	context: ResolveContext;
@@ -103,19 +108,45 @@ type ResolveFn = (
 	context?: PickPartial<ResolveContext, 'root'>,
 ) => any;
 
+type ResolveAsyncFn = (
+	obj: Resolvable | Resolvable[],
+	context?: PickPartial<ResolveContext, 'root'>,
+) => Promise<any>;
+
 type ResolveAtFn = (
 	root: Resolvable,
 	path: NumOrString[],
 	ctx: Omit<ResolveContext, 'currentLocation' | 'root'>,
 ) => any;
 
+type ResolveAtAsyncFn = (
+	root: Resolvable,
+	path: NumOrString[],
+	ctx: Omit<ResolveContext, 'currentLocation' | 'root'>,
+) => Promise<any>;
+
 export type ResolveContext = {
 	currentLocation: NumOrString[];
 	root: Resolvable | Resolvable[];
 	vars: Record<string, any>;
-	resolve: ResolveFn;
-	resolveAt: ResolveAtFn;
+	stack: NumOrString[];
+	tasks: Promise<any>[];
+	resolve: ResolveFn | ResolveAsyncFn;
+	resolveAt: ResolveAtFn | ResolveAtAsyncFn;
 };
+
+export type ResourceDef =
+	| {
+			path: string;
+			method: 'GET';
+			query?: Record<string, string>;
+	  }
+	| {
+			path: string;
+			method: 'POST';
+			body: Record<string, Json> | Json[];
+			query?: Record<string, string>;
+	  };
 
 type ReferenceOpts = {
 	/**
@@ -130,6 +161,7 @@ export class Reference implements IResolvable {
 	abs_path: NumOrString[] | typeof UNRESOLVED;
 	context: ResolveContext;
 	references: IResolvable[];
+	resources: Resource[];
 	value: any;
 
 	constructor(
@@ -145,6 +177,7 @@ export class Reference implements IResolvable {
 		this.abs_path = abs_path;
 		this.context = context;
 		this.references = references;
+		this.resources = [];
 		this.value = value;
 	}
 
@@ -155,6 +188,12 @@ export class Reference implements IResolvable {
 	setReferences(refs: IResolvable[], ctx: ResolveContext) {
 		this.context = ctx;
 		this.references = refs;
+
+		const resources = collectResources(refs);
+
+		if (resources.length) {
+			this.resources = resources;
+		}
 	}
 
 	setValue(value: any) {
@@ -169,6 +208,7 @@ export class Reference implements IResolvable {
 export class Transform implements IResolvable {
 	context: ResolveContext;
 	references: IResolvable[];
+	resources: Resource[];
 	value: any;
 
 	constructor(
@@ -182,12 +222,19 @@ export class Transform implements IResolvable {
 	) {
 		this.context = context;
 		this.references = references;
+		this.resources = [];
 		this.value = value;
 	}
 
 	setReferences(refs: IResolvable[], ctx: ResolveContext) {
 		this.context = ctx;
 		this.references = refs;
+
+		const resources = collectResources(refs);
+
+		if (resources.length) {
+			this.resources = resources;
+		}
 	}
 
 	setValue(value: any) {
@@ -221,5 +268,56 @@ export class Variable implements IResolvable {
 
 	setValue(v: any) {
 		this.value = v;
+	}
+}
+
+export class Resource implements IResolvable {
+	context: ResolveContext;
+	private promise: Promise<any>;
+	public references: IResolvable[];
+	public value: any;
+
+	constructor(
+		public readonly definition: ResourceDef,
+		public readonly path: NumOrString[],
+		context: ResolveContext,
+	) {
+		this.context = context;
+		this.promise = this.getter(definition);
+		this.references = [];
+		this.value = UNRESOLVED;
+	}
+
+	private async getter(def: ResourceDef) {
+		const querystring = def.query
+			? new URLSearchParams(def.query).toString()
+			: '';
+
+		const url = querystring ? `${def.path}?${querystring}` : def.path;
+
+		if (def.method === 'POST') {
+			return fetch(url, {
+				method: def.method,
+				body: def.body as any,
+			});
+		}
+
+		const response = await fetch(url, { method: def.method });
+		const json = await response.json();
+
+		this.value = json;
+		return json;
+	}
+
+	setReferences(refs: IResolvable[]): void {
+		throw new Error('Method not implemented.');
+	}
+
+	setValue(v: any): void {
+		throw new Error('Method not implemented.');
+	}
+
+	then(resolve: any) {
+		this.promise.then(resolve);
 	}
 }

@@ -1,3 +1,4 @@
+import { type IResolvable, Resource } from './api';
 import { isRecord, isResolvable } from './checks';
 
 /**
@@ -17,7 +18,30 @@ export const deref = (x: any) => {
 	return x;
 };
 
+export const collectResources = (
+	resolvable: IResolvable | IResolvable[],
+): Resource[] => {
+	const result: Resource[] = [];
+
+	const refs = Array.isArray(resolvable)
+		? resolvable.flatMap((res) => res.references)
+		: resolvable.references;
+
+	for (const ref of refs) {
+		if (ref instanceof Resource) {
+			result.push(ref);
+		}
+
+		result.push(...collectResources(ref));
+	}
+
+	return result;
+};
+
 export const toPlainObject = (obj: any): any => {
+	if (obj instanceof Resource) {
+		return obj.value;
+	}
 	if (isResolvable(obj)) {
 		return deref(obj);
 	}

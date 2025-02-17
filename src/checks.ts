@@ -2,6 +2,7 @@ import type { NumOrString } from '@thi.ng/api';
 import {
 	UNRESOLVED,
 	Reference,
+	Resource,
 	Transform,
 	Variable,
 	type AbsoluteArray,
@@ -12,6 +13,7 @@ import {
 	type Path,
 	type RelativeArray,
 	type ReferenceDef,
+	type ResourceDef,
 	type RelativeString,
 	type ResolvableDef,
 	type SomeTransform,
@@ -72,13 +74,24 @@ export const isSomeTransform = (x: any): x is SomeTransform => {
 	return Array.isArray(x) && x[0] === 'xf_some';
 };
 
+export const isResource = (x: any): x is ResourceDef => {
+	if (x == null || typeof x !== 'object') {
+		return false;
+	}
+
+	return Object.hasOwn(x, 'path') && Object.hasOwn(x, 'method');
+};
+
 export const isValidPath = (path: Path): path is NumOrString[] => {
 	return !path.includes(UNRESOLVED);
 };
 
 export const isResolvable = (x: any): x is IResolvable => {
 	return (
-		x instanceof Reference || x instanceof Transform || x instanceof Variable
+		x instanceof Reference ||
+		x instanceof Resource ||
+		x instanceof Transform ||
+		x instanceof Variable
 	);
 };
 
