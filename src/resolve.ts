@@ -384,6 +384,10 @@ const resolveObject = (
 	obj: Record<string, Resolvable>,
 	ctx: ResolveContext,
 ): Record<string, Resolvable> => {
+	if (isResolvable(obj)) {
+		return obj;
+	}
+
 	for (const k in obj) {
 		if (isResolvable(obj[k]) && obj[k].value !== UNRESOLVED) {
 			continue;
