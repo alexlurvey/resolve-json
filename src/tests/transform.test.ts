@@ -94,20 +94,17 @@ describe('transforms', () => {
 			const root = {
 				nesting: {
 					data: 42,
-					xf: 'this is where the transform would be in the root object',
+					xf: [
+						'xf_first',
+						[
+							['xf_eq', 1, 1, '@data'],
+							['xf_eq', 1, 1, 'should not reach me'],
+						],
+					],
 				},
 			};
 			const ctx = defContext({ currentLocation: ['nesting', 'xf'], root });
-			const result = transform(
-				[
-					'xf_first',
-					[
-						['xf_eq', 1, 1, '@data'],
-						['xf_eq', 1, 1, 'should not reach me'],
-					],
-				],
-				ctx,
-			);
+			const result = transform(root.nesting.xf as any, ctx);
 			expect(result).toBe(42);
 		});
 	});

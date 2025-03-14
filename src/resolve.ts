@@ -117,101 +117,40 @@ const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
 	return res;
 };
 
+/**
+ * Resovler called on transforms and array forms of absolute/relative
+ * references to collect the dependent references/transforms and the
+ * current (possibly unresolved) values/arguments.
+ */
 const resolveArgs = (
-	parts: ReferencePathPart[],
+	args: ReferencePathPart[],
 	ctx: ResolveContext,
 ): ExpandResult => {
-	const { currentLocation, root, vars } = ctx;
 	const values = [];
 	const references: IResolvable[] = [];
 
-	for (const part of parts) {
-		if (isTransform(part)) {
-			const xf = new Transform(part, currentLocation);
-			const [xform, ...args] = part;
-			const expanded = resolveArgs(args, ctx);
+	for (const [idx, part] of Object.entries(args)) {
+		const next_ctx = {
+			...ctx,
+			currentLocation: [...ctx.currentLocation, Number.parseInt(idx)],
+		};
 
-			if (expanded.references.length) {
-				xf.setReferences(expanded.references);
-			}
-
-			if (canTransform(expanded.values)) {
-				const v = transform([xform, ...expanded.values], ctx);
-				if (v !== undefined) {
-					xf.setValue(v);
-					values.push(v);
-				} else {
-					values.push(UNRESOLVED);
-				}
-			} else {
-				values.push(UNRESOLVED);
-			}
-
-			references.push(xf);
-		} else if (isAbsoluteString(part)) {
-			const expanded = expandRef(part, ctx);
-			if (isValidPath(expanded.values)) {
-				const v = getInRoot(root, expanded.values, ctx);
-				references.push(
-					new Reference(part, currentLocation, {
-						abs_path: expanded.values,
-						value: v,
-						references: expanded.references,
-					}),
-				);
-				values.push(v ?? UNRESOLVED);
-			} else {
-				values.push(UNRESOLVED);
-			}
-		} else if (isRelativeString(part)) {
-			const expanded = expandRef(part, ctx);
-			if (isValidPath(expanded.values)) {
-				const v = getInRoot(root, expanded.values, ctx);
-				references.push(
-					new Reference(part, currentLocation, {
-						abs_path: expanded.values,
-						value: v,
-						references: expanded.references,
-					}),
-				);
-				values.push(v ?? UNRESOLVED);
-			} else {
-				values.push(UNRESOLVED);
-			}
-		} else if (isVariableString(part)) {
+		if (isVariableString(part)) {
 			const k = part === '$' ? part : part.substring(1);
-			values.push(vars[k] ?? UNRESOLVED);
-		} else if (isAbsoluteArray(part)) {
-			const expanded = expandRef(part, ctx);
-			if (isValidPath(expanded.values)) {
-				const v = getInRoot(root, expanded.values, ctx);
-				references.push(
-					new Reference(part, currentLocation, {
-						abs_path: expanded.values,
-						value: v,
-						references: expanded.references,
-					}),
-				);
-				values.push(v ?? UNRESOLVED);
-			} else {
-				values.push(UNRESOLVED);
-			}
-		} else if (isRelativeArray(part)) {
-			const expanded = expandRef(part, ctx);
-			if (isValidPath(expanded.values)) {
-				const v = getInRoot(root, expanded.values, ctx);
-				references.push(
-					new Reference(part, currentLocation, {
-						abs_path: expanded.values,
-						value: v,
-						references: expanded.references,
-					}),
-				);
-
-				values.push(v);
-			} else {
-				values.push(UNRESOLVED);
-			}
+			values.push(ctx.vars[k] ?? UNRESOLVED);
+		} else if (isTransform(part)) {
+			const xf = resolveTransform(part, next_ctx, false);
+			values.push(xf.value);
+			references.push(xf);
+		} else if (
+			isAbsoluteString(part) ||
+			isRelativeString(part) ||
+			isAbsoluteArray(part) ||
+			isRelativeArray(part)
+		) {
+			const ref = resolveRef(part, next_ctx, false);
+			values.push(ref.value);
+			references.push(ref);
 		} else {
 			values.push(part);
 		}
@@ -221,12 +160,9 @@ const resolveArgs = (
 };
 
 /**
- * Attempts to resolve the absolute path of a ReferenceDef. If an array
- * variant, nested references & transforms will be resolved and returned.
- *
- * @param ref - an absolute or relative reference (string or array variant)
- * @param ctx
- * @returns
+ * Similar to `resolveArgs` (which is used here) but specific to References.
+ * Relative references are converted into their absolute path - which is
+ * what `ExpandResult['values']` represents here.
  */
 const expandRef = (ref: ReferenceDef, ctx: ResolveContext): ExpandResult => {
 	const isInArray = typeof ctx.currentLocation.at(-1) === 'number';
