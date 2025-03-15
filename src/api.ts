@@ -89,11 +89,12 @@ export type TransformDef =
 export type ResolvableDef = ReferenceDef | TransformDef | VariableDef;
 
 export interface IResolvable {
+	context: ResolveContext;
 	definition: ResolvableDef;
 	path: Path;
 	value: any;
 	references: IResolvable[];
-	setReferences(refs: IResolvable[]): void;
+	setReferences(refs: IResolvable[], ctx: ResolveContext): void;
 	setValue(v: any): void;
 }
 
@@ -127,12 +128,14 @@ type ReferenceOpts = {
 
 export class Reference implements IResolvable {
 	abs_path: NumOrString[] | typeof UNRESOLVED;
+	context: ResolveContext;
 	references: IResolvable[];
 	value: any;
 
 	constructor(
 		public readonly definition: ReferenceDef,
-		public readonly path: Path,
+		public readonly path: NumOrString[],
+		context: ResolveContext,
 		{
 			abs_path = UNRESOLVED,
 			references = [],
@@ -140,6 +143,7 @@ export class Reference implements IResolvable {
 		}: ReferenceOpts = {},
 	) {
 		this.abs_path = abs_path;
+		this.context = context;
 		this.references = references;
 		this.value = value;
 	}
@@ -148,7 +152,8 @@ export class Reference implements IResolvable {
 		this.abs_path = path;
 	}
 
-	setReferences(refs: IResolvable[]) {
+	setReferences(refs: IResolvable[], ctx: ResolveContext) {
+		this.context = ctx;
 		this.references = refs;
 	}
 
@@ -162,22 +167,26 @@ export class Reference implements IResolvable {
 }
 
 export class Transform implements IResolvable {
+	context: ResolveContext;
 	references: IResolvable[];
 	value: any;
 
 	constructor(
 		public readonly definition: TransformDef,
 		public readonly path: Path,
+		context: ResolveContext,
 		{
 			references = [],
 			value = UNRESOLVED,
 		}: Omit<ReferenceOpts, 'abs_path'> = {},
 	) {
+		this.context = context;
 		this.references = references;
 		this.value = value;
 	}
 
-	setReferences(refs: IResolvable[]) {
+	setReferences(refs: IResolvable[], ctx: ResolveContext) {
+		this.context = ctx;
 		this.references = refs;
 	}
 
@@ -191,19 +200,22 @@ export class Transform implements IResolvable {
 }
 
 export class Variable implements IResolvable {
+	context: ResolveContext;
 	references: IResolvable[];
 	value: any;
 
 	constructor(
 		public readonly definition: VariableDef,
 		public readonly path: Path,
+		context: ResolveContext,
 		{ value = UNRESOLVED }: Omit<ReferenceOpts, 'abs_path'> = {},
 	) {
+		this.context = context;
 		this.value = value;
 		this.references = [];
 	}
 
-	setReferences(_refs: IResolvable[]) {
+	setReferences(_refs: IResolvable[], _ctx: ResolveContext) {
 		throw new Error('Method not implemented.');
 	}
 
