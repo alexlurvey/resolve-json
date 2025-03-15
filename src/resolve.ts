@@ -18,7 +18,6 @@ import type {
 	VariableString,
 } from './api';
 import {
-	canTransform,
 	isAbsoluteArray,
 	isAbsoluteString,
 	isFirstTransform,
@@ -39,10 +38,6 @@ import { deref } from './utils';
 type ExpandResult = {
 	values: any[];
 	references: IResolvable[];
-};
-
-const isCurrentLocationVisited = (ctx: ResolveContext) => {
-	return isResolvable(getInUnsafe(ctx.root, ctx.currentLocation));
 };
 
 const pathFromString = (
@@ -123,11 +118,12 @@ const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
  * current (possibly unresolved) values/arguments.
  */
 const resolveArgs = (
-	args: ReferencePathPart[],
+	refs: ReferencePathPart | ReferencePathPart[],
 	ctx: ResolveContext,
 ): ExpandResult => {
 	const values = [];
 	const references: IResolvable[] = [];
+	const args = Array.isArray(refs) ? refs : [refs];
 
 	for (const [idx, part] of Object.entries(args)) {
 		const next_ctx = {
@@ -221,28 +217,54 @@ const resolveRef = (
 	ctx: ResolveContext,
 	mutateRoot = true,
 ) => {
-	const reference =
-		ref instanceof Reference ? ref : new Reference(ref, ctx.currentLocation);
+	const isVisited = ref instanceof Reference;
+	const def = isVisited ? ref.definition : ref;
+	const resolved = expandRef(def, ctx);
+	const hasValidPath = isValidPath(resolved.values);
 
-	if (mutateRoot && !isCurrentLocationVisited(ctx)) {
+	let value: any;
+
+	if (hasValidPath) {
+		value = getInRoot(ctx.root, resolved.values, ctx);
+	}
+
+	if (isVisited) {
+		if (hasValidPath && value !== undefined) {
+			ref.setValue(value);
+			ref.setAbsPath(resolved.values);
+			ref.setReferences(resolved.references, ctx);
+		}
+
+		return ref;
+	}
+
+	const reference = new Reference(ref, ctx.currentLocation, ctx, {
+		references: resolved.references,
+		value,
+		abs_path: hasValidPath ? resolved.values : UNRESOLVED,
+	});
+
+	if (mutateRoot) {
 		mutInUnsafe(ctx.root, ctx.currentLocation, reference);
 	}
 
-	const resolved = expandRef(reference.definition, ctx);
-
-	if (resolved.references.length) {
-		reference.setReferences(resolved.references);
-	}
-
-	if (isValidPath(resolved.values)) {
-		const v = getInRoot(ctx.root, resolved.values, ctx);
-		if (v) {
-			reference.setValue(v);
-			reference.setAbsPath(resolved.values);
-		}
-	}
-
 	return reference;
+};
+
+const resolveArgsForTransform = (
+	def: TransformDef,
+	ctx: ResolveContext,
+): ExpandResult => {
+	if (isFirstTransform(def) || isMapTransform(def) || isSomeTransform(def)) {
+		const resolved = resolveArgs([def[1]], ctx);
+
+		return {
+			references: resolved.references,
+			values: [...resolved.values, ...def.slice(2)],
+		};
+	}
+
+	return resolveArgs(def.slice(1), ctx);
 };
 
 const resolveTransform = (
@@ -250,45 +272,33 @@ const resolveTransform = (
 	ctx: ResolveContext,
 	mutateRoot = true,
 ) => {
-	const trans =
-		xform instanceof Transform
-			? xform
-			: new Transform(xform, ctx.currentLocation);
+	const isVisited = xform instanceof Transform;
+	const def = isVisited ? xform.definition : xform;
+	const resolved = resolveArgsForTransform(def, ctx);
+	const isReadyToTransform = resolved.values.every((x) => x !== UNRESOLVED);
 
-	if (mutateRoot && !isCurrentLocationVisited(ctx)) {
+	let value: any;
+
+	if (isReadyToTransform) {
+		value = transform([def[0], ...resolved.values], ctx);
+	}
+
+	if (isVisited) {
+		if (isReadyToTransform && value !== undefined) {
+			xform.setValue(value);
+			xform.setReferences(value.references, ctx);
+		}
+
+		return xform;
+	}
+
+	const trans = new Transform(xform, ctx.currentLocation, ctx, {
+		references: resolved.references,
+		value,
+	});
+
+	if (mutateRoot) {
 		mutInUnsafe(ctx.root, ctx.currentLocation, trans);
-	}
-
-	if (
-		isMapTransform(trans.definition) ||
-		isSomeTransform(trans.definition) ||
-		isFirstTransform(trans.definition)
-	) {
-		const expanded = resolveArgs([trans.definition[1]], ctx);
-
-		if (expanded.references.length) {
-			trans.setReferences(expanded.references);
-		}
-
-		const v = transform(trans.definition, ctx);
-		if (v !== undefined) {
-			trans.setValue(v);
-		}
-		return trans;
-	}
-
-	const [xf, ...args] = trans.definition;
-	const resolved = resolveArgs(args, ctx);
-
-	if (resolved.references.length) {
-		trans.setReferences(resolved.references);
-	}
-
-	if (canTransform(resolved.values)) {
-		const v = transform([xf, ...resolved.values], ctx);
-		if (v !== undefined) {
-			trans.setValue(v);
-		}
 	}
 
 	return trans;
@@ -299,17 +309,19 @@ const resolveVariable = (
 	ctx: ResolveContext,
 	mutateRoot = true,
 ) => {
-	const variable =
-		def instanceof Variable ? def : new Variable(def, ctx.currentLocation);
-
-	const key =
-		variable.definition === '$' ? '$' : variable.definition.substring(1);
-
+	const isVisited = def instanceof Variable;
+	const definition = isVisited ? def.definition : def;
+	const key = definition === '$' ? '$' : definition.substring(1);
 	const value = ctx.vars[key] ?? UNRESOLVED;
 
-	variable.setValue(value);
+	if (isVisited) {
+		def.setValue(value);
+		return def;
+	}
 
-	if (mutateRoot && !isCurrentLocationVisited(ctx)) {
+	const variable = new Variable(def, ctx.currentLocation, ctx, { value });
+
+	if (mutateRoot) {
 		mutInUnsafe(ctx.root, ctx.currentLocation, variable);
 	}
 

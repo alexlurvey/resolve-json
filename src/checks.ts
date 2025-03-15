@@ -19,10 +19,6 @@ import {
 	type VariableString,
 } from './api';
 
-export const canTransform = (path: Path) => {
-	return path.every((x) => x !== UNRESOLVED);
-};
-
 export const isBooleanResultTransform = (
 	xf: ResolvableDef,
 ): xf is TransformDef => {
