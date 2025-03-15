@@ -286,7 +286,7 @@ const resolveTransform = (
 	if (isVisited) {
 		if (isReadyToTransform && value !== undefined) {
 			xform.setValue(value);
-			xform.setReferences(value.references, ctx);
+			xform.setReferences(resolved.references, ctx);
 		}
 
 		return xform;
