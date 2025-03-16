@@ -108,3 +108,27 @@ export const isRef = (x: any): x is ReferenceDef => {
 		isVariableString(x)
 	);
 };
+
+export const isObjectFullyResolved = (obj: any) => {
+	if (obj === UNRESOLVED) {
+		return false;
+	}
+
+	for (const value of Object.values(obj)) {
+		if (Array.isArray(obj)) {
+			if (obj.some((x) => x === UNRESOLVED)) {
+				return false;
+			}
+		}
+
+		if (isRecord(value) && !isObjectFullyResolved(value)) {
+			return false;
+		}
+
+		if (value === UNRESOLVED) {
+			return false;
+		}
+	}
+
+	return true;
+};

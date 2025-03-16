@@ -1,6 +1,6 @@
 import type { NumOrString } from '@thi.ng/api/prim';
+import { type Fiber, asPromise } from '@thi.ng/fibers';
 import { getInUnsafe } from '@thi.ng/paths/get-in';
-import { mutInUnsafe } from '@thi.ng/paths/mut-in';
 import { UNRESOLVED, Reference, Transform, Variable, Resource } from './api';
 import type {
 	AbsoluteArray,
@@ -73,10 +73,34 @@ const absPath = (...path: Path) => {
 	}, []);
 };
 
+const mutInRoot = (root: any, path: NumOrString[], value: any) => {
+	const n = path.length - 1;
+	let x = root;
+
+	for (let i = 0; i < n; i++) {
+		if (!x) {
+			return;
+		}
+
+		x = x[path[i]];
+
+		if (
+			x instanceof Reference ||
+			x instanceof Transform ||
+			x instanceof Resource
+		) {
+			x = x.definition;
+		}
+	}
+
+	x[path[n]] = value;
+};
+
 const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
 	const n = path.length - 1;
 	const currentLocation: NumOrString[] = [];
 	let res = root;
+	let ref = null;
 
 	for (let i = 0; res != null && i <= n; i++) {
 		res = res[path[i]];
@@ -104,21 +128,24 @@ const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
 			res = res.value;
 		} else if (isResource(res)) {
 			const resolved = resolveResource(res, ctx);
+			ref = resolved;
 			res = resolved.value;
 		} else if (isVariableString(res)) {
 			res = ctx.vars[res.slice(1)];
 		} else if (isRef(res)) {
 			const resolved = resolveRef(res, ctx);
+			ref = resolved;
 			res = resolved.value;
 		} else if (isTransform(res)) {
 			const resolved = resolveTransform(res, ctx);
+			ref = resolved;
 			res = resolved.value;
 		} else if (Array.isArray(res)) {
 			res = resolveArray(res, ctx);
 		}
 	}
 
-	return res;
+	return { value: res, ref };
 };
 
 /**
@@ -234,18 +261,28 @@ const resolveRef = (
 	const def = isVisited ? ref.definition : ref;
 	const resolved = expandRef(def, ctx);
 	const hasValidPath = isValidPath(resolved.values);
+	const allReferences = resolved.references;
 
 	let value: any;
 
 	if (hasValidPath) {
-		value = getInRoot(ctx.root, resolved.values, ctx);
+		const { value: v, ref } = getInRoot(ctx.root, resolved.values, ctx);
+
+		value = v;
+
+		if (ref) {
+			allReferences.push(ref);
+		}
 	}
 
 	if (isVisited) {
+		ref.setReferences(allReferences, ctx);
+
 		if (hasValidPath && value !== undefined) {
 			ref.setValue(value);
 			ref.setAbsPath(resolved.values);
-			ref.setReferences(resolved.references, ctx);
+		} else {
+			ctx.tasks.add(ref);
 		}
 
 		return ref;
@@ -258,7 +295,11 @@ const resolveRef = (
 	});
 
 	if (mutateRoot) {
-		mutInUnsafe(ctx.root, ctx.currentLocation, reference);
+		mutInRoot(ctx.root, ctx.currentLocation, reference);
+	}
+
+	if (reference.value === UNRESOLVED && reference.resources.length) {
+		ctx.tasks.add(reference);
 	}
 
 	return reference;
@@ -274,8 +315,13 @@ const resolveResource = (
 		? ref
 		: new Resource(ref, ctx.currentLocation, ctx);
 
+	if (!resource.isFetched) {
+		resource.resolve(ctx);
+		ctx.tasks.add(resource);
+	}
+
 	if (mutateRoot && !isVisited) {
-		mutInUnsafe(ctx.root, ctx.currentLocation, resource);
+		mutInRoot(ctx.root, ctx.currentLocation, resource);
 	}
 
 	return resource;
@@ -314,15 +360,12 @@ const resolveTransform = (
 	}
 
 	if (isVisited) {
+		xform.setReferences(resolved.references, ctx);
+
 		if (isReadyToTransform && value !== undefined) {
 			xform.setValue(value);
-			xform.setReferences(resolved.references, ctx);
-		} else if (xform.resources.some((x) => x.value === UNRESOLVED)) {
-			const task = Promise.all(xform.resources).then(() => {
-				resolveAt(ctx.root, ctx.currentLocation, ctx); // todo
-				ctx.tasks = ctx.tasks.filter((x) => x !== task);
-			});
-			ctx.tasks.push(task);
+		} else {
+			ctx.tasks.add(xform);
 		}
 
 		return xform;
@@ -334,15 +377,11 @@ const resolveTransform = (
 	});
 
 	if (trans.resources.length) {
-		const task = Promise.all(trans.resources).then(() => {
-			resolveAt(ctx.root, ctx.currentLocation, ctx); // todo
-			ctx.tasks = ctx.tasks.filter((x) => x !== task);
-		});
-		ctx.tasks.push(task);
+		ctx.tasks.add(trans);
 	}
 
 	if (mutateRoot) {
-		mutInUnsafe(ctx.root, ctx.currentLocation, trans);
+		mutInRoot(ctx.root, ctx.currentLocation, trans);
 	}
 
 	return trans;
@@ -366,7 +405,7 @@ const resolveVariable = (
 	const variable = new Variable(def, ctx.currentLocation, ctx, { value });
 
 	if (mutateRoot) {
-		mutInUnsafe(ctx.root, ctx.currentLocation, variable);
+		mutInRoot(ctx.root, ctx.currentLocation, variable);
 	}
 
 	return variable;
@@ -468,16 +507,23 @@ export const resolveAsync = async (
 		res = resolveObject(obj, ctx);
 	}
 
-	console.log('resolve - stack / tasks / obj', ctx.stack, ctx.tasks, obj);
+	if (ctx.stack.length === 0) {
+		if (ctx.tasks.size) {
+			const main = asPromise(function* (fctx: Fiber<any>) {
+				const rootFibers = [...ctx.tasks].map((resolvable) => resolvable.fiber);
 
-	// if (ctx.stack.length === 0) {
+				fctx.forkAll(...rootFibers);
 
-	if (ctx.tasks.length) {
-		// console.log('current tasks', ctx.tasks);
-		await Promise.all(ctx.tasks);
+				yield* fctx.join();
+			});
+
+			await main;
+
+			return res;
+		}
+
 		return res;
 	}
-	// }
 
 	return res;
 };
@@ -494,14 +540,14 @@ export const resolveAt = (
 	return result;
 };
 
-export const resolveAtAsync = (
+export const resolveAtAsync = async (
 	root: Resolvable,
 	path: NumOrString[],
 	ctx: Omit<ResolveContext, 'currentLocation' | 'root'>,
 ): Promise<any> => {
 	const src = getInUnsafe(root, path);
 
-	const result = resolveAsync(src, { ...ctx, currentLocation: path });
+	const result = await resolveAsync(src, { ...ctx, currentLocation: path });
 
 	return result;
 };
@@ -550,7 +596,7 @@ export const resolveImmediate = (
 		root,
 		vars,
 		stack,
-		tasks: [],
+		tasks: new Set(),
 		resolve: resolveImmediate,
 		resolveAt: resolveAt,
 	};
@@ -594,7 +640,7 @@ export const defContext = (
 		currentLocation: [],
 		vars: {},
 		stack: [],
-		tasks: [],
+		tasks: new Set(),
 		resolve,
 		resolveAt,
 		...ctx,
@@ -611,7 +657,7 @@ export const defContextAsync = (
 		currentLocation: [],
 		vars: {},
 		stack: [],
-		tasks: [],
+		tasks: new Set(),
 		resolve: resolveAsync,
 		resolveAt: resolveAtAsync,
 		...ctx,

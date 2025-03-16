@@ -1,19 +1,19 @@
 {
-    "compilerOptions": {
-	"baseUrl": ".",
-	"outDir": "dist",
-	"incremental": true,
-	"noEmitOnError": true,
-	"skipLibCheck": true,
-	"allowSyntheticDefaultImports": true,
-	"esModuleInterop": true,
-	"isolatedModules": true,
-	"module": "ESNext",
-	"moduleResolution": "Bundler",
-	"strict": true,
-	"target": "ESNext",
-	"noFallthroughCasesInSwitch": true,
-	"resolveJsonModule": true
-    },
-    "include": ["src"]
+	"compilerOptions": {
+		"baseUrl": ".",
+		"outDir": "dist",
+		"incremental": true,
+		"noEmitOnError": true,
+		"skipLibCheck": true,
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true,
+		"isolatedModules": true,
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"strict": true,
+		"target": "ESNext",
+		"noFallthroughCasesInSwitch": true,
+		"resolveJsonModule": true
+	},
+	"include": ["src"]
 }

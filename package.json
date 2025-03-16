@@ -11,6 +11,7 @@
 	"dependencies": {
 		"@thi.ng/api": "^8.11.16",
 		"@thi.ng/date": "^2.7.38",
+		"@thi.ng/fibers": "^1.0.35",
 		"@thi.ng/paths": "^5.1.97"
 	},
 	"devDependencies": {
