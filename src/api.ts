@@ -439,7 +439,6 @@ export class Resource implements IResolvable {
 				const bodyFiber = self.defBodyFiber();
 
 				ctx.forkAll(pathFiber, bodyFiber, queryFiber);
-
 				yield* ctx.join();
 
 				const path = toPlainObject(pathFiber.deref());
@@ -450,6 +449,7 @@ export class Resource implements IResolvable {
 			} else {
 				ctx.forkAll(pathFiber, queryFiber);
 				yield* ctx.join();
+
 				const path = toPlainObject(pathFiber.deref());
 				const query = toPlainObject(queryFiber.deref());
 

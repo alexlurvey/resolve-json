@@ -154,12 +154,11 @@ const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
  * current (possibly unresolved) values/arguments.
  */
 const resolveArgs = (
-	refs: ReferencePathPart | ReferencePathPart[],
+	args: ReferencePathPart[],
 	ctx: ResolveContext,
 ): ExpandResult => {
 	const values = [];
 	const references: IResolvable[] = [];
-	const args = Array.isArray(refs) ? refs : [refs];
 
 	for (const [idx, part] of Object.entries(args)) {
 		const next_ctx = {
@@ -507,22 +506,14 @@ export const resolveAsync = async (
 		res = resolveObject(obj, ctx);
 	}
 
-	if (ctx.stack.length === 0) {
-		if (ctx.tasks.size) {
-			const main = asPromise(function* (fctx: Fiber<any>) {
-				const rootFibers = [...ctx.tasks].map((resolvable) => resolvable.fiber);
+	if (ctx.stack.length === 0 && ctx.tasks.size) {
+		await asPromise(function* (fctx: Fiber) {
+			const rootFibers = [...ctx.tasks].map((task) => task.fiber);
 
-				fctx.forkAll(...rootFibers);
+			fctx.forkAll(...rootFibers);
 
-				yield* fctx.join();
-			});
-
-			await main;
-
-			return res;
-		}
-
-		return res;
+			yield* fctx.join();
+		});
 	}
 
 	return res;
