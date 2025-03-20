@@ -35,6 +35,7 @@ import {
 	isValidPath,
 	isVariableString,
 } from './checks';
+import { fetchResource } from './fetch';
 import { transform } from './transform';
 import { deref } from './utils';
 
@@ -667,6 +668,7 @@ export const defContextAsync = (
 		stack,
 		tasks,
 		variables,
+		fetchResource: ctx.fetchResource ?? fetchResource,
 		resolve: resolveAsync,
 		resolveAt: resolveAtAsync,
 	};

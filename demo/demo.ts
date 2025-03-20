@@ -1,9 +1,38 @@
+import type { FetchOptions } from '../src/api';
 import { resolveAsync, toPlainObject } from 'resolve-json';
 
 const wait = (ms: number) => {
 	return new Promise((resolve) => {
 		setTimeout(resolve, ms);
 	});
+};
+
+const fetchResource = async (opts: FetchOptions) => {
+	const headers = {
+		Authorization: 'Bearer XXX',
+		'Content-Type': 'application/json',
+	};
+
+	let url = opts.path;
+
+	if (opts.query) {
+		const params = new URLSearchParams(opts.query).toString();
+		url = `${opts.path}?${params}`;
+	}
+
+	if (opts.method === 'GET') {
+		const response = await fetch(url, { method: 'GET', headers });
+		const json = await response.json();
+		return json;
+	}
+
+	const response = await fetch(url, {
+		method: 'POST',
+		body: JSON.stringify(opts.body ?? {}),
+		headers,
+	});
+	const json = await response.json();
+	return json;
 };
 
 const config = {
@@ -38,7 +67,7 @@ const config = {
 
 console.log('resolve start', config);
 
-let resolved = await resolveAsync(config);
+let resolved = await resolveAsync(config, { fetchResource });
 
 console.log('r1', resolved);
 console.log('r1 - plain', toPlainObject(resolved));
@@ -46,7 +75,10 @@ console.log('__________________________________________');
 
 await wait(2000);
 
-resolved = await resolveAsync(resolved, { selected_topic: 'transducers' });
+resolved = await resolveAsync(resolved, {
+	variables: { selected_topic: 'transducers' },
+	fetchResource,
+});
 
 console.log('r2', resolved);
 console.log('r2 - plain', toPlainObject(resolved));

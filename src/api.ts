@@ -38,6 +38,14 @@ export type Resolvable = Json<ResolvableDef | Reference | Transform | Variable>;
 
 export type JsonObject = Record<string, Json>;
 
+export type FetchOptions = {
+	method: 'GET' | 'POST';
+	path: string;
+	body?: JsonObject;
+	query?: Record<string, string>;
+	headers?: HeadersInit;
+};
+
 export type XF =
 	| 'xf_bool'
 	| 'xf_concat'
@@ -133,22 +141,17 @@ export type ResolveContext = {
 	stack: NumOrString[];
 	tasks?: Set<IResolvable>;
 	variables: Record<string, any>;
+	fetchResource?: (opts: FetchOptions) => Promise<any>;
 	resolve: ResolveFn | ResolveAsyncFn;
 	resolveAt: ResolveAtFn | ResolveAtAsyncFn;
 };
 
-export type ResourceDef =
-	| {
-			path: string;
-			method: 'GET';
-			query?: Record<string, string>;
-	  }
-	| {
-			path: string;
-			method: 'POST';
-			body: Record<string, Json> | Json[];
-			query?: Record<string, string>;
-	  };
+export type ResourceDef = {
+	path: string;
+	method: 'GET' | 'POST';
+	body: Record<string, Json> | Json[];
+	query?: Record<string, string>;
+};
 
 type ReferenceOpts = {
 	/**
@@ -321,7 +324,7 @@ export class Variable implements IResolvable {
 }
 
 export class Resource implements IResolvable {
-	public context: ResolveContext;
+	public context: Required<ResolveContext>;
 	public fiber: Fiber<any>;
 	public isFetched: boolean;
 	public references: IResolvable[];
@@ -330,7 +333,7 @@ export class Resource implements IResolvable {
 	constructor(
 		public readonly definition: ResourceDef,
 		public readonly path: NumOrString[],
-		context: ResolveContext,
+		context: Required<ResolveContext>,
 	) {
 		this.context = context;
 		this.isFetched = false;
@@ -339,51 +342,30 @@ export class Resource implements IResolvable {
 		this.value = UNRESOLVED;
 	}
 
-	async fetcher(opts: { path: string; body?: any; query?: any }) {
+	get hasQuery() {
+		return Boolean(this.definition.query);
+	}
+
+	get hasBody() {
+		return Boolean(this.definition.body);
+	}
+
+	async fetcher(opts: Omit<FetchOptions, 'method'>) {
 		const { path, body, query } = opts;
-		const def = this.definition;
-		const hasQuery = !!query;
-		const isQueryResolved = hasQuery && isObjectFullyResolved(query);
 
-		if (hasQuery && !isQueryResolved) {
-			return null;
-		}
+		const options = {
+			method: this.definition.method,
+			path,
+			body,
+			query,
+		};
 
-		const hasBody = !!body;
-		const isBodyResolved = hasBody && isObjectFullyResolved(body);
+		const value = await this.context.fetchResource(options);
 
-		let url = path;
-
-		if (isQueryResolved) {
-			const querystring = new URLSearchParams(query).toString();
-			url = `${path}?${querystring}`;
-		}
-
-		if (def.method === 'POST') {
-			if (hasBody && !isBodyResolved) {
-				return null;
-			}
-
-			const response = await fetch(url, {
-				method: 'POST',
-				body: JSON.stringify(body),
-				headers: {
-					Authorization: 'Bearer XXX',
-					'Content-Type': 'application/json',
-				},
-			});
-
-			const json = await response.json();
-			this.value = json;
-			this.isFetched = true;
-			return json;
-		}
-
-		const response = await fetch(url, { method: 'GET' });
-		const json = await response.json();
-		this.value = json;
+		this.value = value;
 		this.isFetched = true;
-		return json;
+
+		return value;
 	}
 
 	defBodyFiber() {
@@ -445,6 +427,18 @@ export class Resource implements IResolvable {
 				const body = toPlainObject(bodyFiber.deref());
 				const query = toPlainObject(queryFiber.deref());
 
+				if (!path || path === UNRESOLVED) {
+					return null;
+				}
+
+				if (self.hasQuery && !isObjectFullyResolved(query)) {
+					return null;
+				}
+
+				if (self.hasBody && !isObjectFullyResolved(body)) {
+					return null;
+				}
+
 				yield* untilPromise(self.fetcher({ path, body, query }));
 			} else {
 				ctx.forkAll(pathFiber, queryFiber);
@@ -453,12 +447,20 @@ export class Resource implements IResolvable {
 				const path = toPlainObject(pathFiber.deref());
 				const query = toPlainObject(queryFiber.deref());
 
+				if (!path || path === UNRESOLVED) {
+					return null;
+				}
+
+				if (self.hasQuery && !isObjectFullyResolved(query)) {
+					return null;
+				}
+
 				yield* untilPromise(self.fetcher({ path, query }));
 			}
 		});
 	}
 
-	resolve(ctx: ResolveContext) {
+	resolve(ctx: Required<ResolveContext>) {
 		if (this.fiber.state > STATE_ACTIVE) {
 			this.context = ctx;
 			this.fiber = this.defFiber();
