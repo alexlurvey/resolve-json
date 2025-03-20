@@ -315,16 +315,29 @@ const resolveResource = (
 	mutateRoot = true,
 ) => {
 	const isVisited = ref instanceof Resource;
-	const resource = isVisited
-		? ref
-		: new Resource(ref, ctx.currentLocation, ctx);
 
-	if (!resource.isFetched && isAsyncContext(ctx)) {
-		resource.resolve(ctx);
-		ctx.tasks.add(resource);
+	if (!isAsyncContext(ctx)) {
+		if (!isVisited) {
+			throw Error(
+				'Encountered a Resource during synchronous resolution. Did you mean to call `resolveAsync`?',
+			);
+		}
+
+		return ref;
 	}
 
-	if (mutateRoot && !isVisited) {
+	if (isVisited) {
+		if (!ref.isFetched) {
+			ref.resolve(ctx);
+			ctx.tasks.add(ref);
+		}
+
+		return ref;
+	}
+
+	const resource = new Resource(ref, ctx.currentLocation, ctx);
+
+	if (mutateRoot) {
 		mutInRoot(ctx.root, ctx.currentLocation, resource);
 	}
 
