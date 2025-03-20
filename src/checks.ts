@@ -1,25 +1,28 @@
 import type { NumOrString } from '@thi.ng/api';
-import {
-	UNRESOLVED,
-	Reference,
-	Resource,
-	Transform,
-	Variable,
-	type AbsoluteArray,
-	type AbsoluteString,
-	type FirstTransform,
-	type IResolvable,
-	type MapTransform,
-	type Path,
-	type RelativeArray,
-	type ReferenceDef,
-	type ResourceDef,
-	type RelativeString,
-	type ResolvableDef,
-	type SomeTransform,
-	type TransformDef,
-	type VariableString,
+import type {
+	AbsoluteArray,
+	AbsoluteString,
+	FirstTransform,
+	IResolvable,
+	MapTransform,
+	Path,
+	RelativeArray,
+	ReferenceDef,
+	ResourceDef,
+	RelativeString,
+	ResolvableDef,
+	SomeTransform,
+	TransformDef,
+	VariableString,
+	ResolveContext,
 } from './api';
+import { UNRESOLVED, Reference, Resource, Transform, Variable } from './api';
+
+export const isAsyncContext = (
+	ctx: ResolveContext,
+): ctx is Required<ResolveContext> => {
+	return Object.hasOwn(ctx, 'tasks');
+};
 
 export const isBooleanResultTransform = (
 	xf: ResolvableDef,

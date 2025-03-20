@@ -26,9 +26,11 @@ describe('resolve', () => {
 		});
 
 		it('variable string', () => {
-			const vars = { gimmesomething: 'something' };
+			const variables = { gimmesomething: 'something' };
 			const root = { value: '$gimmesomething' };
-			const result = toPlainObject(resolve(root, defContext({ vars, root })));
+			const result = toPlainObject(
+				resolve(root, defContext(root, { variables })),
+			);
 			expect(result.value).toBe('something');
 		});
 
@@ -57,7 +59,7 @@ describe('resolve', () => {
 		});
 
 		it('array of references', () => {
-			const vars = { three: 'three' };
+			const variables = { three: 'three' };
 			const root = {
 				lookup: {
 					one: 1,
@@ -66,7 +68,9 @@ describe('resolve', () => {
 				},
 				values: ['@/lookup/one', '@/lookup/two', ['@@/lookup', '$three']],
 			};
-			const result = toPlainObject(resolve(root, defContext({ vars, root })));
+			const result = toPlainObject(
+				resolve(root, defContext(root, { variables })),
+			);
 			expect(result.values).toEqual([1, 2, 3]);
 		});
 
@@ -83,7 +87,7 @@ describe('resolve', () => {
 
 	describe('with variables', () => {
 		it('absolute array', () => {
-			const vars = { field_type: 'dropdown' };
+			const variables = { field_type: 'dropdown' };
 			const root = {
 				lookup: {
 					dropdown: 'dd_value',
@@ -92,26 +96,30 @@ describe('resolve', () => {
 					value: ['@@/lookup', '$field_type'],
 				},
 			};
-			const result = toPlainObject(resolve(root, defContext({ vars, root })));
+			const result = toPlainObject(
+				resolve(root, defContext(root, { variables })),
+			);
 			expect(result.nesting.value).toBe('dd_value');
 		});
 
 		it('relative array', () => {
-			const vars = { field_type: 'dropdown' };
+			const variables = { field_type: 'dropdown' };
 			const root = {
 				lookup: {
 					dropdown: 'dd_value',
 				},
 				value: ['@@lookup', '$field_type'],
 			};
-			const result = toPlainObject(resolve(root, defContext({ vars, root })));
+			const result = toPlainObject(
+				resolve(root, defContext(root, { variables })),
+			);
 			expect(result.value).toBe('dd_value');
 		});
 	});
 
 	describe('nested references', () => {
 		it('absolute array w/ relative array', () => {
-			const vars = { field_type: 'dropdown' };
+			const variables = { field_type: 'dropdown' };
 			const root = {
 				lookup: {
 					key: 'lookup_value',
@@ -123,12 +131,14 @@ describe('resolve', () => {
 				},
 				main_reference: ['@@/lookup', ['@@other_data', '$field_type', 'key']],
 			};
-			const result = toPlainObject(resolve(root, defContext({ vars, root })));
+			const result = toPlainObject(
+				resolve(root, defContext(root, { variables })),
+			);
 			expect(result.main_reference).toBe('lookup_value');
 		});
 
 		it('relative array w/ absolute array', () => {
-			const vars = { field_type: 'dropdown' };
+			const variables = { field_type: 'dropdown' };
 			const root = {
 				lookup: {
 					key: 'lookup_value',
@@ -140,7 +150,9 @@ describe('resolve', () => {
 				},
 				main_reference: ['@@lookup', ['@@/other_data', '$field_type', 'key']],
 			};
-			const result = toPlainObject(resolve(root, defContext({ vars, root })));
+			const result = toPlainObject(
+				resolve(root, defContext(root, { variables })),
+			);
 			expect(result.main_reference).toBe('lookup_value');
 		});
 	});
@@ -179,7 +191,7 @@ describe('resolve', () => {
 
 	describe('kitchen sink', () => {
 		it('all the things', () => {
-			const vars = {
+			const variables = {
 				activity: {
 					id: 'xxx',
 					name: 'Test Activity',
@@ -220,7 +232,9 @@ describe('resolve', () => {
 					},
 				},
 			};
-			const result = toPlainObject(resolve(root, defContext({ root, vars })));
+			const result = toPlainObject(
+				resolve(root, defContext(root, { variables })),
+			);
 
 			expect(result.usernames).toEqual([
 				'"Alice Smith"',
@@ -268,11 +282,11 @@ describe('resolve', () => {
 				testing: '$variable',
 			};
 
-			let resolved = resolve(root, defContext({ root }));
+			let resolved = resolve(root, defContext(root));
 
 			resolved = resolve(
 				resolved,
-				defContext({ vars: { variable: 'hello' }, root }),
+				defContext(root, { variables: { variable: 'hello' } }),
 			);
 
 			expect(resolved.testing.value).toBe('hello');
@@ -286,14 +300,14 @@ describe('resolve', () => {
 				},
 			};
 
-			let resolved = resolve(root, defContext({ root }));
+			let resolved = resolve(root, defContext(root));
 
 			expect(resolved.testing).toBeInstanceOf(Reference);
 			expect(resolved.testing.value).toBe(UNRESOLVED);
 
 			resolved = resolve(
 				resolved,
-				defContext({ root, vars: { value: 'property' } }),
+				defContext(root, { variables: { value: 'property' } }),
 			);
 
 			expect(resolved.testing.value).toBe(123);
@@ -304,14 +318,14 @@ describe('resolve', () => {
 				testing: ['xf_map', '$value', ['xf_pick', '$', ['value']]],
 			};
 
-			const vars = { value: [{ value: 1 }, { value: 2 }] };
+			const variables = { value: [{ value: 1 }, { value: 2 }] };
 
-			let resolved = resolve(root, defContext({ root }));
+			let resolved = resolve(root, defContext(root));
 
 			expect(resolved.testing).toBeInstanceOf(Transform);
 			expect(resolved.testing.value).toBe(UNRESOLVED);
 
-			resolved = resolve(resolved, defContext({ root, vars }));
+			resolved = resolve(resolved, defContext(root, { variables }));
 
 			expect(resolved.testing.value).toEqual([1, 2]);
 		});
@@ -342,14 +356,14 @@ describe('resolve', () => {
 				size: ['@@sizes', '@input_type'],
 			};
 
-			let resolved = resolve(root, defContext({ root }));
+			let resolved = resolve(root, defContext(root));
 
 			expect(resolved.input_type).toBeInstanceOf(Reference);
 			expect(resolved.input_type.value).toBe(UNRESOLVED);
 
 			resolved = resolve(
 				resolved,
-				defContext({ vars: { condition: 'has' }, root: resolved }),
+				defContext(resolved, { variables: { condition: 'has' } }),
 			);
 
 			expect(resolved.input_type).toBeInstanceOf(Reference);
@@ -359,9 +373,8 @@ describe('resolve', () => {
 
 			resolved = resolve(
 				resolved,
-				defContext({
-					root: resolved,
-					vars: {
+				defContext(resolved, {
+					variables: {
 						condition: 'has',
 						value: [{ name: 'Option 1' }],
 					},
@@ -384,13 +397,13 @@ describe('resolve', () => {
 
 			let result: any = resolve(
 				root,
-				defContext({ root, vars: { one: 1, two: 2 } }),
+				defContext(root, { variables: { one: 1, two: 2 } }),
 			);
 			expect(toPlainObject(result).array).toEqual([1, 2, UNRESOLVED]);
 
 			result = resolve(
 				result,
-				defContext({ root: result, vars: { one: 1, two: 2, three: 3 } }),
+				defContext(result, { variables: { one: 1, two: 2, three: 3 } }),
 			);
 			expect(toPlainObject(result).array).toEqual([1, 2, 3]);
 		});
@@ -419,9 +432,8 @@ describe('resolve', () => {
 
 			resolved = resolve(
 				resolved,
-				defContext({
-					root: resolved,
-					vars: {
+				defContext(resolved, {
+					variables: {
 						condition: 'has_any',
 						value: [{ name: 'Option 1' }, { name: 'Option 2' }],
 					},

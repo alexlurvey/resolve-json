@@ -25,7 +25,7 @@ describe('extend', () => {
 				xf_inherit: [{ two: 'two', three: 'three' }],
 				one: 'one',
 			};
-			const extended = extend(root, defContext({ root }));
+			const extended = extend(root, defContext(root));
 			const result = withoutXFKeys(extended);
 			expect(result).toEqual({
 				one: 'one',
@@ -47,8 +47,8 @@ describe('extend', () => {
 					one: 'one',
 				},
 			};
-			const vars = { object_type: 'client_client' };
-			const extended = extend(root, defContext({ vars, root }));
+			const variables = { object_type: 'client_client' };
+			const extended = extend(root, defContext(root, { variables }));
 			const result = withoutXFKeys(extended.config);
 			expect(result).toEqual({
 				one: 'one',
@@ -72,7 +72,7 @@ describe('extend', () => {
 				],
 				one: 'one',
 			};
-			const extended = extend(root, defContext({ root }));
+			const extended = extend(root, defContext(root));
 			const result = withoutXFKeys(extended);
 			expect(result).toEqual({ one: 'one', two: 'two', three: 'three' });
 		});
@@ -87,7 +87,7 @@ describe('extend', () => {
 					one: 'one',
 				},
 			};
-			const extended = extend(root, defContext({ root }));
+			const extended = extend(root, defContext(root));
 			const result = withoutXFKeys(extended.config);
 			expect(result).toEqual({ share_property: 'shared!', one: 'one' });
 		});
@@ -109,7 +109,7 @@ describe('extend', () => {
 				two: 'two',
 				three: 'three',
 			};
-			const extended = extend(root, defContext({ root }));
+			const extended = extend(root, defContext(root));
 			const result = withoutXFKeys(extended);
 			expect(result).toEqual({ one: 'one', two: 'two', three: 'three' });
 		});
@@ -123,7 +123,7 @@ describe('extend', () => {
 				three: 'three',
 				xf_extend: [['xf_eq', 1, 1, { one: 1, two: 2 }]],
 			};
-			const extended = extend(root, defContext({ root }));
+			const extended = extend(root, defContext(root));
 			const result = withoutXFKeys(extended);
 			expect(result).toEqual({ one: 1, two: 2, three: 'three' });
 		});
@@ -135,7 +135,7 @@ describe('extend', () => {
 			xf_extend: [['xf_eq', 1, 1, { one: 1, two: 2 }]],
 			xf_inherit: [['xf_eq', 1, 1, { one: 'one', two: 'two' }]],
 		};
-		const extended = extend(root, defContext({ root }));
+		const extended = extend(root, defContext(root));
 		const result = withoutXFKeys(extended);
 		expect(result).toEqual({ one: 1, two: 2, three: 3 });
 	});

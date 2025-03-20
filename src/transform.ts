@@ -102,7 +102,7 @@ const some = (src: any[], resolver: ($: any) => any, opts: SomeOpts) => {
 };
 
 export const transform = (def: [XF, ...any[]], ctx?: ResolveContext): any => {
-	const { currentLocation = [], vars = {}, root = {} } = ctx ?? {};
+	const { currentLocation = [], variables = {}, root = {} } = ctx ?? {};
 	const [xform, ...args] = def;
 
 	if (xform === 'xf_bool') {
@@ -119,7 +119,7 @@ export const transform = (def: [XF, ...any[]], ctx?: ResolveContext): any => {
 	}
 	if (xform === 'xf_first') {
 		const resolver = ($: any) => {
-			return resolveImmediate($, vars, currentLocation, root);
+			return resolveImmediate($, variables, currentLocation, root);
 		};
 
 		return first(args[0], resolver);
@@ -134,14 +134,19 @@ export const transform = (def: [XF, ...any[]], ctx?: ResolveContext): any => {
 		return join(...args);
 	}
 	if (xform === 'xf_map') {
-		const src = resolveImmediate(args[0], vars, currentLocation, root);
+		const src = resolveImmediate(args[0], variables, currentLocation, root);
 
 		if (isUnresovled(src)) {
 			return undefined;
 		}
 
 		const resolver = ($: any) => {
-			return resolveImmediate(args[1], { ...vars, $ }, currentLocation, root);
+			return resolveImmediate(
+				args[1],
+				{ ...variables, $ },
+				currentLocation,
+				root,
+			);
 		};
 		return map(src, resolver);
 	}
@@ -152,7 +157,7 @@ export const transform = (def: [XF, ...any[]], ctx?: ResolveContext): any => {
 		return pick(args[0], args[1]);
 	}
 	if (xform === 'xf_some') {
-		const src = resolveImmediate(args[0], vars, currentLocation, root);
+		const src = resolveImmediate(args[0], variables, currentLocation, root);
 		const isBooleanResult = isBooleanResultTransform(args[1]);
 		const opts = { isBooleanResult, returnVal: args[2] };
 
@@ -161,7 +166,12 @@ export const transform = (def: [XF, ...any[]], ctx?: ResolveContext): any => {
 		}
 
 		const resolver = ($: any) => {
-			return resolveImmediate(args[1], { ...vars, $ }, currentLocation, root);
+			return resolveImmediate(
+				args[1],
+				{ ...variables, $ },
+				currentLocation,
+				root,
+			);
 		};
 
 		return some(src, resolver, opts);

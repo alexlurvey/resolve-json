@@ -12,9 +12,9 @@ export { toPlainObject } from './utils';
 
 export const resolve = (
 	root: Resolvable | Resolvable[],
-	vars: Record<string, any> = {},
+	variables: Record<string, any> = {},
 ): any => {
-	const context = defContext({ root, vars });
+	const context = defContext(root, { variables });
 
 	return r(root, context);
 };
@@ -22,18 +22,18 @@ export const resolve = (
 export const resolveAt = (
 	root: Resolvable | Resolvable[],
 	path: (string | number)[],
-	vars: Record<string, any> = {},
+	variables: Record<string, any> = {},
 ): any => {
-	const context = defContext({ root, vars, currentLocation: path });
+	const context = defContext(root, { variables, currentLocation: path });
 
 	return rAt(root, path, context);
 };
 
 export const resolveAsync = async (
 	root: Resolvable | Resolvable[],
-	vars: Record<string, any> = {},
+	variables: Record<string, any> = {},
 ): Promise<any> => {
-	const context = defContextAsync({ root, vars });
+	const context = defContextAsync(root, { variables });
 
 	return rAsync(root, context);
 };
@@ -41,9 +41,9 @@ export const resolveAsync = async (
 export const resolveAtAsync = (
 	root: Resolvable | Resolvable[],
 	path: (string | number)[],
-	vars: Record<string, any> = {},
+	variables: Record<string, any> = {},
 ): any => {
-	const context = defContextAsync({ root, vars, currentLocation: path });
+	const context = defContextAsync(root, { variables, currentLocation: path });
 
 	return rAtAsync(root, path, context);
 };

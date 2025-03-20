@@ -130,9 +130,9 @@ type ResolveAtAsyncFn = (
 export type ResolveContext = {
 	currentLocation: NumOrString[];
 	root: Resolvable | Resolvable[];
-	vars: Record<string, any>;
 	stack: NumOrString[];
-	tasks: Set<IResolvable>;
+	tasks?: Set<IResolvable>;
+	variables: Record<string, any>;
 	resolve: ResolveFn | ResolveAsyncFn;
 	resolveAt: ResolveAtFn | ResolveAtAsyncFn;
 };
@@ -303,7 +303,7 @@ export class Variable implements IResolvable {
 		this.value = value;
 		this.references = [];
 		this.fiber = fiber(function* () {
-			const value = self.context.vars[definition.slice(1)];
+			const value = self.context.variables[definition.slice(1)];
 
 			self.setValue(value);
 
