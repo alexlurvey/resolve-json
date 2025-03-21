@@ -339,11 +339,12 @@ describe('transforms', () => {
 			const variables = {
 				users: [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }],
 			};
-			const result = transform(
+			const result = resolve(
 				['xf_some', '$users', ['xf_eq', ['xf_pick', '$', ['name']], 'Zorp']],
 				defContext({}, { variables }),
 			);
-			expect(result).toBe(true);
+			expect(result).toBeInstanceOf(Transform);
+			expect(result.value).toBe(true);
 		});
 
 		it('absolute reference as the comparator', () => {

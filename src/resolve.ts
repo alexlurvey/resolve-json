@@ -446,11 +446,10 @@ const resolveObject = (
 			continue;
 		}
 
-		const loc = [...ctx.currentLocation, k];
 		ctx.resolve(obj[k], {
 			...ctx,
 			stack: [...ctx.stack, k],
-			currentLocation: loc,
+			currentLocation: [...ctx.currentLocation, k],
 		});
 	}
 
@@ -462,13 +461,14 @@ const resolveArray = (arr: Resolvable[], ctx: ResolveContext): Resolvable[] => {
 		if (isResolvable(x) && x.value !== UNRESOLVED) {
 			continue;
 		}
-		const loc = [...ctx.currentLocation, i];
+
 		ctx.resolve(arr[i], {
 			...ctx,
 			stack: [...ctx.stack, i],
-			currentLocation: loc,
+			currentLocation: [...ctx.currentLocation, i],
 		});
 	}
+
 	return arr;
 };
 
@@ -567,8 +567,12 @@ const resolveObjectImmediate = (
 	const result: Record<string, any> = {};
 
 	for (const k in obj) {
-		const loc = [...ctx.currentLocation, k];
-		const resolved = resolveImmediate(obj[k], ctx.variables, loc, ctx.root);
+		const resolved = resolveImmediate(obj[k], {
+			...ctx,
+			stack: [...ctx.stack, k],
+			currentLocation: [...ctx.currentLocation, k],
+		});
+
 		result[k] = deref(resolved);
 	}
 
@@ -582,8 +586,12 @@ const resolveArrayImmediate = (
 	const result: any[] = [];
 
 	for (const [i, x] of array.entries()) {
-		const loc = [...ctx.currentLocation, i];
-		const resolved = resolveImmediate(x, ctx.variables, loc, ctx.root);
+		const resolved = resolveImmediate(x, {
+			...ctx,
+			stack: [...ctx.stack, i],
+			currentLocation: [...ctx.currentLocation, i],
+		});
+
 		result.push(deref(resolved));
 	}
 
@@ -592,15 +600,19 @@ const resolveArrayImmediate = (
 
 export const resolveImmediate = (
 	obj: Resolvable | Resolvable[],
-	variables: Record<string, any> = {},
-	path: NumOrString[] = [],
-	root?: Resolvable | Resolvable[],
-	stack: NumOrString[] = [],
+	context: Partial<
+		Pick<ResolveContext, 'currentLocation' | 'root' | 'stack' | 'variables'>
+	> = {},
 ): any => {
-	root = root || obj;
+	const {
+		currentLocation = [],
+		root = obj,
+		stack = [],
+		variables = {},
+	} = context;
 
 	const ctx: ResolveContext = {
-		currentLocation: path,
+		currentLocation,
 		root,
 		variables,
 		stack,
@@ -618,12 +630,12 @@ export const resolveImmediate = (
 
 	if (isTransform(obj) || obj instanceof Transform) {
 		const resolved = resolveTransform(obj, ctx, false);
-		return resolveImmediate(resolved.value, variables);
+		return resolveImmediate(resolved.value, { variables });
 	}
 
 	if (isRef(obj) || obj instanceof Reference) {
 		const resolved = resolveRef(obj, ctx, false);
-		return resolveImmediate(resolved.value, variables);
+		return resolveImmediate(resolved.value, { variables });
 	}
 
 	if (Array.isArray(obj)) {
