@@ -342,6 +342,8 @@ const resolveResource = (
 		mutInRoot(ctx.root, ctx.currentLocation, resource);
 	}
 
+	ctx.tasks.add(resource);
+
 	return resource;
 };
 
