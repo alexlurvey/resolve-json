@@ -76,7 +76,7 @@ describe('transforms', () => {
 
 		it('absolute references can be used as the return value', () => {
 			const root = { data: 42 };
-			const ctx = defContext({ root });
+			const ctx = defContext(root);
 			const result = transform(
 				[
 					'xf_first',
@@ -103,7 +103,7 @@ describe('transforms', () => {
 					],
 				},
 			};
-			const ctx = defContext({ currentLocation: ['nesting', 'xf'], root });
+			const ctx = defContext(root, { currentLocation: ['nesting', 'xf'] });
 			const result = transform(root.nesting.xf as any, ctx);
 			expect(result).toBe(42);
 		});
@@ -135,7 +135,7 @@ describe('transforms', () => {
 
 		describe('transforms as an xf_map source', () => {
 			it('xf_map is used as the array source of another xf_map', () => {
-				const vars = {
+				const variables = {
 					users: [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }],
 				};
 				const xf_map = [
@@ -143,7 +143,7 @@ describe('transforms', () => {
 					['xf_map', '$users', ['xf_pick', '$', ['name']]],
 					['xf_join', '__', '$', '__'],
 				];
-				const ctx = defContext({ vars, root: {} });
+				const ctx = defContext({}, { variables });
 				const result = resolve(xf_map, ctx);
 				expect(result).toBeInstanceOf(Transform);
 				expect(result.value).toEqual(['__Alice__', '__Frank__', '__Zorp__']);
@@ -169,7 +169,7 @@ describe('transforms', () => {
 					],
 					['xf_pick', '$'], // just use xf_pick as identity function
 				];
-				const result = resolve(xf_map, defContext({ root }));
+				const result = resolve(xf_map, defContext(root));
 				expect(result).toBeInstanceOf(Transform);
 				expect(result.value).toEqual([1, 2, 3, 'one', 'two', 'three']);
 			});
@@ -183,13 +183,13 @@ describe('transforms', () => {
 					},
 					users: [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }],
 				};
-				const result = resolve(root, defContext({ root }));
+				const result = resolve(root, defContext(root));
 				expect(result.nesting.names).toBeInstanceOf(Transform);
 				expect(result.nesting.names.value).toEqual(['Alice', 'Frank', 'Zorp']);
 			});
 
 			it('absolute array reference', () => {
-				const vars = {
+				const variables = {
 					object_type: 'client_client',
 				};
 				const root = {
@@ -208,7 +208,7 @@ describe('transforms', () => {
 						],
 					},
 				};
-				const result = resolve(root, defContext({ vars, root }));
+				const result = resolve(root, defContext(root, { variables }));
 				expect(result.nesting.names).toBeInstanceOf(Transform);
 				expect(result.nesting.names.value).toEqual(['Alice', 'Frank', 'Zorp']);
 			});
@@ -218,13 +218,13 @@ describe('transforms', () => {
 					names: ['xf_map', '@users', ['xf_pick', '$', ['name']]],
 					users: [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }],
 				};
-				const result = resolve(root, defContext({ root }));
+				const result = resolve(root, defContext(root));
 				expect(result.names).toBeInstanceOf(Transform);
 				expect(result.names.value).toEqual(['Alice', 'Frank', 'Zorp']);
 			});
 
 			it('relative array reference', () => {
-				const vars = {
+				const variables = {
 					object_type: 'client_client',
 				};
 				const root = {
@@ -243,14 +243,14 @@ describe('transforms', () => {
 						],
 					},
 				};
-				const result = resolve(root, defContext({ vars, root }));
+				const result = resolve(root, defContext(root, { variables }));
 				expect(result.nesting.names).toBeInstanceOf(Transform);
 				expect(result.nesting.names.value).toEqual(['Alice', 'Frank', 'Zorp']);
 			});
 		});
 
 		it('map with object definition', () => {
-			const vars = {
+			const variables = {
 				users: [
 					{ first_name: 'Alice', last_name: 'Smith' },
 					{ first_name: 'Frank', last_name: 'Smith' },
@@ -271,7 +271,7 @@ describe('transforms', () => {
 					},
 				],
 			};
-			const result = resolve(root, defContext({ vars, root }));
+			const result = resolve(root, defContext(root, { variables }));
 			expect(result.names).toBeInstanceOf(Transform);
 			expect(result.names.value).toEqual([
 				{ full_name: 'Alice Smith' },
@@ -281,7 +281,7 @@ describe('transforms', () => {
 		});
 
 		it('a reference used in a mapper does not pollute the source object at the current location', () => {
-			const vars = {
+			const variables = {
 				users: [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }],
 			};
 			const xf_map = [
@@ -297,7 +297,7 @@ describe('transforms', () => {
 					names: xf_map,
 				},
 			};
-			const result = resolve(root, defContext({ vars, root }));
+			const result = resolve(root, defContext(root, { variables }));
 			expect(result.nesting.names).toBeInstanceOf(Transform);
 			expect(result.nesting.names.value).toEqual([
 				{ data: '__Alice' },
@@ -312,7 +312,7 @@ describe('transforms', () => {
 		it('returns the nested path value', () => {
 			const root = { data: { array: ['one', 'two'] } };
 			const xf_pick = ['xf_pick', '@/data', ['array', 1]];
-			const result = resolve(xf_pick, defContext({ root }));
+			const result = resolve(xf_pick, defContext(root));
 			expect(result).toBeInstanceOf(Transform);
 			expect(result.value).toBe('two');
 		});
@@ -320,7 +320,7 @@ describe('transforms', () => {
 		it('returns the source value when there is no second argument', () => {
 			const root = { data: 'data' };
 			const xf_pick = ['xf_pick', '@/data'];
-			const result = resolve(xf_pick, defContext({ root }));
+			const result = resolve(xf_pick, defContext(root));
 			expect(result).toBeInstanceOf(Transform);
 			expect(result.value).toBe('data');
 		});
@@ -328,7 +328,7 @@ describe('transforms', () => {
 		it('returns the source value when the second argument is an empty array', () => {
 			const root = { data: 'data' };
 			const xf_pick = ['xf_pick', '@/data', []];
-			const result = resolve(xf_pick, defContext({ root }));
+			const result = resolve(xf_pick, defContext(root));
 			expect(result).toBeInstanceOf(Transform);
 			expect(result.value).toBe('data');
 		});
@@ -336,12 +336,12 @@ describe('transforms', () => {
 
 	describe('xf_some', () => {
 		it('boolean result transfrom as the comparator function', () => {
-			const vars = {
+			const variables = {
 				users: [{ name: 'Alice' }, { name: 'Frank' }, { name: 'Zorp' }],
 			};
 			const result = transform(
 				['xf_some', '$users', ['xf_eq', ['xf_pick', '$', ['name']], 'Zorp']],
-				defContext({ vars, root: {} }),
+				defContext({}, { variables }),
 			);
 			expect(result).toBe(true);
 		});
@@ -350,7 +350,7 @@ describe('transforms', () => {
 			const root = { data: 'Frank' };
 			const result = transform(
 				['xf_some', ['Alice', 'Frank', 'Zorp'], '@/data'],
-				defContext({ root }),
+				defContext(root),
 			);
 			expect(result).toBe(true);
 		});
@@ -361,7 +361,7 @@ describe('transforms', () => {
 			};
 			const result = transform(
 				['xf_some', ['Alice', 'Frank', 'Zorp'], '@data'],
-				defContext({ currentLocation: ['nesting', 'xf'], root }),
+				defContext(root, { currentLocation: ['nesting', 'xf'] }),
 			);
 			expect(result).toBe(true);
 		});

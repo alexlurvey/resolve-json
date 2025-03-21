@@ -1,13 +1,25 @@
-import type { Resolvable } from './api';
-import { defContext, resolve as r, resolveAt as rAt } from './resolve';
+import type { FetchOptions, Resolvable } from './api';
+import {
+	defContext,
+	defContextAsync,
+	resolve as r,
+	resolveAsync as rAsync,
+	resolveAt as rAt,
+	resolveAtAsync as rAtAsync,
+} from './resolve';
 
 export { toPlainObject } from './utils';
 
+type ResolveOptions = {
+	variables?: Record<string, any>;
+	fetchResource?: (opts: FetchOptions) => Promise<any>;
+};
+
 export const resolve = (
 	root: Resolvable | Resolvable[],
-	vars: Record<string, any> = {},
+	variables: Record<string, any> = {},
 ): any => {
-	const context = defContext({ root, vars });
+	const context = defContext(root, { variables });
 
 	return r(root, context);
 };
@@ -15,9 +27,36 @@ export const resolve = (
 export const resolveAt = (
 	root: Resolvable | Resolvable[],
 	path: (string | number)[],
-	vars: Record<string, any> = {},
+	variables: Record<string, any> = {},
 ): any => {
-	const context = defContext({ root, vars, currentLocation: path });
+	const context = defContext(root, { variables, currentLocation: path });
 
 	return rAt(root, path, context);
+};
+
+export const resolveAsync = async (
+	root: Resolvable | Resolvable[],
+	options: ResolveOptions = {},
+): Promise<any> => {
+	const { variables = {}, fetchResource } = options;
+
+	const context = defContextAsync(root, { variables, fetchResource });
+
+	return rAsync(root, context);
+};
+
+export const resolveAtAsync = (
+	root: Resolvable | Resolvable[],
+	path: (string | number)[],
+	options: ResolveOptions = {},
+): any => {
+	const { variables = {}, fetchResource } = options;
+
+	const context = defContextAsync(root, {
+		variables,
+		currentLocation: path,
+		fetchResource,
+	});
+
+	return rAtAsync(root, path, context);
 };

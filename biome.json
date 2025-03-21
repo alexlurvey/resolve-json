@@ -20,6 +20,12 @@
 		"enabled": true,
 		"rules": {
 			"recommended": true,
+			"complexity": {
+				"noUselessThisAlias": "off"
+			},
+			"correctness": {
+				"useYield": "off"
+			},
 			"style": {
 				"noNonNullAssertion": "off",
 				"noParameterAssign": "off"

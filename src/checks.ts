@@ -1,23 +1,28 @@
 import type { NumOrString } from '@thi.ng/api';
-import {
-	UNRESOLVED,
-	Reference,
-	Transform,
-	Variable,
-	type AbsoluteArray,
-	type AbsoluteString,
-	type FirstTransform,
-	type IResolvable,
-	type MapTransform,
-	type Path,
-	type RelativeArray,
-	type ReferenceDef,
-	type RelativeString,
-	type ResolvableDef,
-	type SomeTransform,
-	type TransformDef,
-	type VariableString,
+import type {
+	AbsoluteArray,
+	AbsoluteString,
+	FirstTransform,
+	IResolvable,
+	MapTransform,
+	Path,
+	RelativeArray,
+	ReferenceDef,
+	ResourceDef,
+	RelativeString,
+	ResolvableDef,
+	SomeTransform,
+	TransformDef,
+	VariableString,
+	ResolveContext,
 } from './api';
+import { UNRESOLVED, Reference, Resource, Transform, Variable } from './api';
+
+export const isAsyncContext = (
+	ctx: ResolveContext,
+): ctx is Required<ResolveContext> => {
+	return Object.hasOwn(ctx, 'tasks');
+};
 
 export const isBooleanResultTransform = (
 	xf: ResolvableDef,
@@ -72,13 +77,24 @@ export const isSomeTransform = (x: any): x is SomeTransform => {
 	return Array.isArray(x) && x[0] === 'xf_some';
 };
 
+export const isResource = (x: any): x is ResourceDef => {
+	if (x == null || typeof x !== 'object') {
+		return false;
+	}
+
+	return Object.hasOwn(x, 'path') && Object.hasOwn(x, 'method');
+};
+
 export const isValidPath = (path: Path): path is NumOrString[] => {
 	return !path.includes(UNRESOLVED);
 };
 
 export const isResolvable = (x: any): x is IResolvable => {
 	return (
-		x instanceof Reference || x instanceof Transform || x instanceof Variable
+		x instanceof Reference ||
+		x instanceof Resource ||
+		x instanceof Transform ||
+		x instanceof Variable
 	);
 };
 
@@ -94,4 +110,28 @@ export const isRef = (x: any): x is ReferenceDef => {
 		isRelativeArray(x) ||
 		isVariableString(x)
 	);
+};
+
+export const isObjectFullyResolved = (obj: any) => {
+	if (obj === UNRESOLVED) {
+		return false;
+	}
+
+	for (const value of Object.values(obj)) {
+		if (Array.isArray(obj)) {
+			if (obj.some((x) => x === UNRESOLVED)) {
+				return false;
+			}
+		}
+
+		if (isRecord(value) && !isObjectFullyResolved(value)) {
+			return false;
+		}
+
+		if (value === UNRESOLVED) {
+			return false;
+		}
+	}
+
+	return true;
 };

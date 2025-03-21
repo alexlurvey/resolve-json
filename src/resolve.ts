@@ -1,7 +1,7 @@
 import type { NumOrString } from '@thi.ng/api/prim';
+import { type Fiber, asPromise } from '@thi.ng/fibers';
 import { getInUnsafe } from '@thi.ng/paths/get-in';
-import { mutInUnsafe } from '@thi.ng/paths/mut-in';
-import { UNRESOLVED, Reference, Transform, Variable } from './api';
+import { UNRESOLVED, Reference, Transform, Variable, Resource } from './api';
 import type {
 	AbsoluteArray,
 	AbsoluteString,
@@ -14,12 +14,14 @@ import type {
 	RelativeString,
 	Resolvable,
 	ResolveContext,
+	ResourceDef,
 	TransformDef,
 	VariableString,
 } from './api';
 import {
 	isAbsoluteArray,
 	isAbsoluteString,
+	isAsyncContext,
 	isFirstTransform,
 	isMapTransform,
 	isRecord,
@@ -27,11 +29,13 @@ import {
 	isRelativeArray,
 	isRelativeString,
 	isResolvable,
+	isResource,
 	isSomeTransform,
 	isTransform,
 	isValidPath,
 	isVariableString,
 } from './checks';
+import { fetchResource } from './fetch';
 import { transform } from './transform';
 import { deref } from './utils';
 
@@ -71,17 +75,45 @@ const absPath = (...path: Path) => {
 	}, []);
 };
 
+const mutInRoot = (root: any, path: NumOrString[], value: any) => {
+	const n = path.length - 1;
+	let x = root;
+
+	for (let i = 0; i < n; i++) {
+		if (!x) {
+			return;
+		}
+
+		x = x[path[i]];
+
+		if (
+			x instanceof Reference ||
+			x instanceof Transform ||
+			x instanceof Resource
+		) {
+			x = x.definition;
+		}
+	}
+
+	x[path[n]] = value;
+};
+
 const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
 	const n = path.length - 1;
 	const currentLocation: NumOrString[] = [];
 	let res = root;
+	let ref = null;
 
 	for (let i = 0; res != null && i <= n; i++) {
 		res = res[path[i]];
 		currentLocation.push(path[i]);
 		const ctx: ResolveContext = { ...rctx, currentLocation };
 
-		if (res instanceof Reference) {
+		if (res instanceof Resource) {
+			if (res.value !== UNRESOLVED) {
+				res = res.value;
+			}
+		} else if (res instanceof Reference) {
 			if (res.value === UNRESOLVED) {
 				resolveRef(res, ctx);
 			}
@@ -96,20 +128,26 @@ const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
 				resolveVariable(res, ctx);
 			}
 			res = res.value;
+		} else if (isResource(res)) {
+			const resolved = resolveResource(res, ctx);
+			ref = resolved;
+			res = resolved.value;
 		} else if (isVariableString(res)) {
-			res = ctx.vars[res.slice(1)];
+			res = ctx.variables[res.slice(1)];
 		} else if (isRef(res)) {
 			const resolved = resolveRef(res, ctx);
+			ref = resolved;
 			res = resolved.value;
 		} else if (isTransform(res)) {
 			const resolved = resolveTransform(res, ctx);
+			ref = resolved;
 			res = resolved.value;
 		} else if (Array.isArray(res)) {
 			res = resolveArray(res, ctx);
 		}
 	}
 
-	return res;
+	return { value: res, ref };
 };
 
 /**
@@ -118,12 +156,11 @@ const getInRoot = (root: any, path: NumOrString[], rctx: ResolveContext) => {
  * current (possibly unresolved) values/arguments.
  */
 const resolveArgs = (
-	refs: ReferencePathPart | ReferencePathPart[],
+	args: ReferencePathPart[],
 	ctx: ResolveContext,
 ): ExpandResult => {
 	const values = [];
 	const references: IResolvable[] = [];
-	const args = Array.isArray(refs) ? refs : [refs];
 
 	for (const [idx, part] of Object.entries(args)) {
 		const next_ctx = {
@@ -133,7 +170,7 @@ const resolveArgs = (
 
 		if (isVariableString(part)) {
 			const k = part === '$' ? part : part.substring(1);
-			values.push(ctx.vars[k] ?? UNRESOLVED);
+			values.push(ctx.variables[k] ?? UNRESOLVED);
 		} else if (isTransform(part)) {
 			const xf = resolveTransform(part, next_ctx, false);
 			values.push(xf.value);
@@ -147,6 +184,10 @@ const resolveArgs = (
 			const ref = resolveRef(part, next_ctx, false);
 			values.push(ref.value);
 			references.push(ref);
+		} else if (isResource(part)) {
+			const res = resolveResource(part, next_ctx, false);
+			values.push(res.value);
+			references.push(res);
 		} else {
 			values.push(part);
 		}
@@ -221,18 +262,30 @@ const resolveRef = (
 	const def = isVisited ? ref.definition : ref;
 	const resolved = expandRef(def, ctx);
 	const hasValidPath = isValidPath(resolved.values);
+	const allReferences = resolved.references;
 
 	let value: any;
 
 	if (hasValidPath) {
-		value = getInRoot(ctx.root, resolved.values, ctx);
+		const { value: v, ref } = getInRoot(ctx.root, resolved.values, ctx);
+
+		value = v;
+
+		if (ref) {
+			allReferences.push(ref);
+		}
 	}
 
 	if (isVisited) {
+		ref.setReferences(allReferences, ctx);
+
 		if (hasValidPath && value !== undefined) {
 			ref.setValue(value);
 			ref.setAbsPath(resolved.values);
-			ref.setReferences(resolved.references, ctx);
+		} else {
+			if (isAsyncContext(ctx)) {
+				ctx.tasks.add(ref);
+			}
 		}
 
 		return ref;
@@ -245,10 +298,53 @@ const resolveRef = (
 	});
 
 	if (mutateRoot) {
-		mutInUnsafe(ctx.root, ctx.currentLocation, reference);
+		mutInRoot(ctx.root, ctx.currentLocation, reference);
+	}
+
+	if (reference.value === UNRESOLVED && reference.resources.length) {
+		if (isAsyncContext(ctx)) {
+			ctx.tasks.add(reference);
+		}
 	}
 
 	return reference;
+};
+
+const resolveResource = (
+	ref: Resource | ResourceDef,
+	ctx: ResolveContext,
+	mutateRoot = true,
+) => {
+	const isVisited = ref instanceof Resource;
+
+	if (!isAsyncContext(ctx)) {
+		if (!isVisited) {
+			throw Error(
+				'Encountered a Resource during synchronous resolution. Did you mean to call `resolveAsync`?',
+			);
+		}
+
+		return ref;
+	}
+
+	if (isVisited) {
+		if (!ref.isFetched) {
+			ref.resolve(ctx);
+			ctx.tasks.add(ref);
+		}
+
+		return ref;
+	}
+
+	const resource = new Resource(ref, ctx.currentLocation, ctx);
+
+	if (mutateRoot) {
+		mutInRoot(ctx.root, ctx.currentLocation, resource);
+	}
+
+	ctx.tasks.add(resource);
+
+	return resource;
 };
 
 const resolveArgsForTransform = (
@@ -284,9 +380,14 @@ const resolveTransform = (
 	}
 
 	if (isVisited) {
+		xform.setReferences(resolved.references, ctx);
+
 		if (isReadyToTransform && value !== undefined) {
 			xform.setValue(value);
-			xform.setReferences(resolved.references, ctx);
+		} else {
+			if (isAsyncContext(ctx)) {
+				ctx.tasks.add(xform);
+			}
 		}
 
 		return xform;
@@ -297,8 +398,12 @@ const resolveTransform = (
 		value,
 	});
 
+	if (trans.resources.length && isAsyncContext(ctx)) {
+		ctx.tasks.add(trans);
+	}
+
 	if (mutateRoot) {
-		mutInUnsafe(ctx.root, ctx.currentLocation, trans);
+		mutInRoot(ctx.root, ctx.currentLocation, trans);
 	}
 
 	return trans;
@@ -312,7 +417,7 @@ const resolveVariable = (
 	const isVisited = def instanceof Variable;
 	const definition = isVisited ? def.definition : def;
 	const key = definition === '$' ? '$' : definition.substring(1);
-	const value = ctx.vars[key] ?? UNRESOLVED;
+	const value = ctx.variables[key] ?? UNRESOLVED;
 
 	if (isVisited) {
 		def.setValue(value);
@@ -322,7 +427,7 @@ const resolveVariable = (
 	const variable = new Variable(def, ctx.currentLocation, ctx, { value });
 
 	if (mutateRoot) {
-		mutInUnsafe(ctx.root, ctx.currentLocation, variable);
+		mutInRoot(ctx.root, ctx.currentLocation, variable);
 	}
 
 	return variable;
@@ -342,7 +447,11 @@ const resolveObject = (
 		}
 
 		const loc = [...ctx.currentLocation, k];
-		ctx.resolve(obj[k], { ...ctx, currentLocation: loc });
+		ctx.resolve(obj[k], {
+			...ctx,
+			stack: [...ctx.stack, k],
+			currentLocation: loc,
+		});
 	}
 
 	return obj;
@@ -354,7 +463,11 @@ const resolveArray = (arr: Resolvable[], ctx: ResolveContext): Resolvable[] => {
 			continue;
 		}
 		const loc = [...ctx.currentLocation, i];
-		ctx.resolve(arr[i], { ...ctx, currentLocation: loc });
+		ctx.resolve(arr[i], {
+			...ctx,
+			stack: [...ctx.stack, i],
+			currentLocation: loc,
+		});
 	}
 	return arr;
 };
@@ -363,10 +476,7 @@ export const resolve = (
 	obj: Resolvable | Resolvable[],
 	context?: PickPartial<ResolveContext, 'root'>,
 ): any => {
-	const ctx: ResolveContext = defContext({
-		...context,
-		root: context?.root ?? obj,
-	});
+	const ctx = defContext(context?.root ?? obj, context);
 
 	if (isVariableString(obj) || obj instanceof Variable) {
 		return resolveVariable(obj, ctx);
@@ -391,6 +501,41 @@ export const resolve = (
 	return obj;
 };
 
+export const resolveAsync = async (
+	obj: Resolvable | Resolvable[],
+	context?: PickPartial<ResolveContext, 'root'>,
+): Promise<any> => {
+	const ctx = defContextAsync(context?.root ?? obj, context);
+
+	let res: any = obj;
+
+	if (isResource(obj) || obj instanceof Resource) {
+		res = resolveResource(obj, ctx);
+	} else if (isVariableString(obj) || obj instanceof Variable) {
+		res = resolveVariable(obj, ctx);
+	} else if (isTransform(obj) || obj instanceof Transform) {
+		res = resolveTransform(obj, ctx);
+	} else if (isRef(obj) || obj instanceof Reference) {
+		res = resolveRef(obj, ctx);
+	} else if (Array.isArray(obj)) {
+		res = resolveArray(obj, ctx);
+	} else if (isRecord(obj)) {
+		res = resolveObject(obj, ctx);
+	}
+
+	if (ctx.stack.length === 0 && ctx.tasks.size) {
+		await asPromise(function* (fctx: Fiber) {
+			const rootFibers = [...ctx.tasks].map((task) => task.fiber);
+
+			fctx.forkAll(...rootFibers);
+
+			yield* fctx.join();
+		});
+	}
+
+	return res;
+};
+
 export const resolveAt = (
 	root: Resolvable,
 	path: NumOrString[],
@@ -403,6 +548,18 @@ export const resolveAt = (
 	return result;
 };
 
+export const resolveAtAsync = async (
+	root: Resolvable,
+	path: NumOrString[],
+	ctx: Omit<ResolveContext, 'currentLocation' | 'root'>,
+): Promise<any> => {
+	const src = getInUnsafe(root, path);
+
+	const result = await resolveAsync(src, { ...ctx, currentLocation: path });
+
+	return result;
+};
+
 const resolveObjectImmediate = (
 	obj: Record<string, Resolvable>,
 	ctx: ResolveContext,
@@ -411,7 +568,7 @@ const resolveObjectImmediate = (
 
 	for (const k in obj) {
 		const loc = [...ctx.currentLocation, k];
-		const resolved = resolveImmediate(obj[k], ctx.vars, loc, ctx.root);
+		const resolved = resolveImmediate(obj[k], ctx.variables, loc, ctx.root);
 		result[k] = deref(resolved);
 	}
 
@@ -426,7 +583,7 @@ const resolveArrayImmediate = (
 
 	for (const [i, x] of array.entries()) {
 		const loc = [...ctx.currentLocation, i];
-		const resolved = resolveImmediate(x, ctx.vars, loc, ctx.root);
+		const resolved = resolveImmediate(x, ctx.variables, loc, ctx.root);
 		result.push(deref(resolved));
 	}
 
@@ -435,19 +592,25 @@ const resolveArrayImmediate = (
 
 export const resolveImmediate = (
 	obj: Resolvable | Resolvable[],
-	vars: Record<string, any> = {},
+	variables: Record<string, any> = {},
 	path: NumOrString[] = [],
 	root?: Resolvable | Resolvable[],
+	stack: NumOrString[] = [],
 ): any => {
 	root = root || obj;
 
 	const ctx: ResolveContext = {
 		currentLocation: path,
 		root,
-		vars,
+		variables,
+		stack,
 		resolve: resolveImmediate,
 		resolveAt: resolveAt,
 	};
+
+	if (isResource(obj) || obj instanceof Resource) {
+		return resolveResource(obj, ctx, false);
+	}
 
 	if (isVariableString(obj) || obj instanceof Variable) {
 		return resolveVariable(obj, ctx, false);
@@ -455,12 +618,12 @@ export const resolveImmediate = (
 
 	if (isTransform(obj) || obj instanceof Transform) {
 		const resolved = resolveTransform(obj, ctx, false);
-		return resolveImmediate(resolved.value, vars);
+		return resolveImmediate(resolved.value, variables);
 	}
 
 	if (isRef(obj) || obj instanceof Reference) {
 		const resolved = resolveRef(obj, ctx, false);
-		return resolveImmediate(resolved.value, vars);
+		return resolveImmediate(resolved.value, variables);
 	}
 
 	if (Array.isArray(obj)) {
@@ -475,16 +638,40 @@ export const resolveImmediate = (
 };
 
 export const defContext = (
-	ctx: Omit<
-		PickPartial<ResolveContext, 'currentLocation' | 'vars'>,
-		'resolve' | 'resolveAt'
-	>,
+	root: any,
+	ctx: Partial<ResolveContext> = {},
 ): ResolveContext => {
+	const { currentLocation = [], variables = {}, stack = [] } = ctx;
+
 	return {
-		currentLocation: [],
-		vars: {},
+		currentLocation,
+		root,
+		stack,
+		variables,
 		resolve,
 		resolveAt,
-		...ctx,
+	};
+};
+
+export const defContextAsync = (
+	root: any,
+	ctx: Partial<ResolveContext> = {},
+): Required<ResolveContext> => {
+	const {
+		currentLocation = [],
+		variables = {},
+		stack = [],
+		tasks = new Set(),
+	} = ctx;
+
+	return {
+		currentLocation,
+		root,
+		stack,
+		tasks,
+		variables,
+		fetchResource: ctx.fetchResource ?? fetchResource,
+		resolve: resolveAsync,
+		resolveAt: resolveAtAsync,
 	};
 };
