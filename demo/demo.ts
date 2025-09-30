@@ -1,5 +1,5 @@
-import type { FetchOptions } from '../src/api';
 import { resolveAsync, toPlainObject } from 'resolve-json';
+import type { FetchOptions } from '../src/api';
 
 const wait = (ms: number) => {
 	return new Promise((resolve) => {

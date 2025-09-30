@@ -1,5 +1,5 @@
 import type { NumOrString } from '@thi.ng/api';
-import { type Fiber, STATE_ACTIVE, fiber, untilPromise } from '@thi.ng/fibers';
+import { type Fiber, fiber, STATE_ACTIVE, untilPromise } from '@thi.ng/fibers';
 import { isObjectFullyResolved, isResolvable } from './checks';
 import { collectResources, toPlainObject } from './utils';
 
@@ -471,7 +471,7 @@ export class Resource implements IResolvable {
 		throw new Error('Method not implemented.');
 	}
 
-	setValue(v: any): void {
+	setValue(_v: any): void {
 		throw new Error('Method not implemented.');
 	}
 }

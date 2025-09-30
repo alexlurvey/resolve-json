@@ -1,7 +1,6 @@
 import type { NumOrString } from '@thi.ng/api/prim';
-import { type Fiber, asPromise } from '@thi.ng/fibers';
+import { asPromise, type Fiber } from '@thi.ng/fibers';
 import { getInUnsafe } from '@thi.ng/paths/get-in';
-import { UNRESOLVED, Reference, Transform, Variable, Resource } from './api';
 import type {
 	AbsoluteArray,
 	AbsoluteString,
@@ -18,6 +17,7 @@ import type {
 	TransformDef,
 	VariableString,
 } from './api';
+import { Reference, Resource, Transform, UNRESOLVED, Variable } from './api';
 import {
 	isAbsoluteArray,
 	isAbsoluteString,
@@ -165,7 +165,7 @@ const resolveArgs = (
 	for (const [idx, part] of Object.entries(args)) {
 		const next_ctx = {
 			...ctx,
-			currentLocation: [...ctx.currentLocation, Number.parseInt(idx)],
+			currentLocation: [...ctx.currentLocation, Number.parseInt(idx, 10)],
 		};
 
 		if (isVariableString(part)) {

@@ -6,17 +6,17 @@ import type {
 	IResolvable,
 	MapTransform,
 	Path,
-	RelativeArray,
 	ReferenceDef,
-	ResourceDef,
+	RelativeArray,
 	RelativeString,
 	ResolvableDef,
+	ResolveContext,
+	ResourceDef,
 	SomeTransform,
 	TransformDef,
 	VariableString,
-	ResolveContext,
 } from './api';
-import { UNRESOLVED, Reference, Resource, Transform, Variable } from './api';
+import { Reference, Resource, Transform, UNRESOLVED, Variable } from './api';
 
 export const isAsyncContext = (
 	ctx: ResolveContext,
