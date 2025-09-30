@@ -1,7 +1,7 @@
 {
 	"name": "resolve-json",
 	"type": "module",
-	"packageManager": "yarn@4.6.0",
+	"packageManager": "yarn@4.10.3",
 	"scripts": {
 		"build": "tsc",
 		"dev": "vite demo",
