@@ -11,10 +11,10 @@
 		"src"
 	],
 	"dependencies": {
-		"@thi.ng/api": "^8.11.16",
-		"@thi.ng/date": "^2.7.38",
-		"@thi.ng/fibers": "^1.0.35",
-		"@thi.ng/paths": "^5.1.97"
+		"@thi.ng/api": "^8.12.2",
+		"@thi.ng/date": "^2.7.64",
+		"@thi.ng/fibers": "^1.0.57",
+		"@thi.ng/paths": "^5.2.21"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.2.4",
